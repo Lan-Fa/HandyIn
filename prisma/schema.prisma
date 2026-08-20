@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  TEACHER
+  REPRESENTATIVE
+}
+
+enum AssignmentStatus {
+  DRAFT
+  COLLECTING
+  FINISHED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  name         String?
+  role         Role     @default(TEACHER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignments Assignment[]  @relation("AssignmentCreator")
+  submissions Submission[]
+  repGrants   AssignmentRep[]
+  auditLogs   AuditLog[]
+}
+
+model Class {
+  id          String @id @default(uuid())
+  entryYear   Int
+  department  String
+  classNumber Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  students    Student[]
+  assignments Assignment[]
+
+  @@unique([entryYear, department, classNumber])
+}
+
+model Student {
+  id            String @id @default(uuid())
+  name          String
+  studentNumber String @unique
+  entryYear     Int
+  department    String
+  classNumber   Int
+  numberInClass Int
+  qrToken       String @unique
+  classId       String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  class       Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  submissions Submission[]
+}
+
+model Assignment {
+  id          String           @id @default(uuid())
+  classId     String
+  title       String
+  description String?
+  createdById String
+  status      AssignmentStatus @default(DRAFT)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  class       Class           @relation(fields: [classId], references: [id], onDelete: Cascade)
+  createdBy   User            @relation("AssignmentCreator", fields: [createdById], references: [id])
+  submissions Submission[]
+  reps        AssignmentRep[]
+
+  @@index([classId])
+}
+
+model Submission {
+  id           String   @id @default(uuid())
+  assignmentId String
+  studentId    String
+  operatorId   String
+  submittedAt  DateTime @default(now())
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  operator   User       @relation(fields: [operatorId], references: [id])
+
+  @@unique([assignmentId, studentId])
+  @@index([assignmentId])
+}
+
+model AssignmentRep {
+  id           String    @id @default(uuid())
+  assignmentId String
+  userId       String
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, userId])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+}
