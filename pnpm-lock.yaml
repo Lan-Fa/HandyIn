@@ -102,6 +102,9 @@ importers:
       react-router-dom:
         specifier: ^7.1.1
         version: 7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      workbox-window:
+        specifier: ^7.3.0
+        version: 7.4.1
     devDependencies:
       '@tailwindcss/vite':
         specifier: ^4.0.0
