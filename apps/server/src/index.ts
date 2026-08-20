@@ -3,6 +3,7 @@ import { loadConfig, type Config } from './config.js';
 import { prisma } from './prisma.js';
 import { AppError } from './errors.js';
 import authPlugin from './plugins/auth.js';
+import staticPlugin from './plugins/static.js';
 import { authRoutes } from './routes/auth.js';
 import { userRoutes } from './routes/users.js';
 import { classRoutes } from './routes/classes.js';
@@ -72,6 +73,8 @@ export async function buildApp(config: Config = loadConfig()): Promise<FastifyIn
   await app.register(repRoutes, { prefix: apiPrefix });
 
   await app.register(wsRoutes, { prefix: config.basePath });
+
+  await app.register(staticPlugin);
 
   return app;
 }

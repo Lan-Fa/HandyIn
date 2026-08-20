@@ -1,0 +1,6 @@
+{$SITE_ADDRESS} {
+	@handyin path {$HANDYIN_BASE_PATH} {$HANDYIN_BASE_PATH}/*
+	handle @handyin {
+		reverse_proxy server:3000
+	}
+}
