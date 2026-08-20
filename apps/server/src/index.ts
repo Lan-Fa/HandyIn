@@ -4,6 +4,13 @@ import { prisma } from './prisma.js';
 import { AppError } from './errors.js';
 import authPlugin from './plugins/auth.js';
 import { authRoutes } from './routes/auth.js';
+import { userRoutes } from './routes/users.js';
+import { classRoutes } from './routes/classes.js';
+import { studentRoutes } from './routes/students.js';
+import { assignmentRoutes } from './routes/assignments.js';
+import { submissionRoutes } from './routes/submissions.js';
+import { repRoutes } from './routes/reps.js';
+import { wsRoutes } from './routes/ws.js';
 import { ensureInitTeacher } from './seed.js';
 import { cleanupSessions } from './lib/session.js';
 
@@ -44,12 +51,27 @@ export async function buildApp(config: Config = loadConfig()): Promise<FastifyIn
     timeWindow: '1 minute',
   });
 
+  await app.register(import('@fastify/multipart'), {
+    limits: {
+      fileSize: config.maxUploadSize,
+      files: config.maxUploadFiles,
+    },
+  });
+
   await app.register(authPlugin);
 
   app.get('/healthz', async () => ({ ok: true }));
 
   const apiPrefix = `${config.basePath}/api`;
   await app.register(authRoutes, { prefix: apiPrefix });
+  await app.register(userRoutes, { prefix: apiPrefix });
+  await app.register(classRoutes, { prefix: apiPrefix });
+  await app.register(studentRoutes, { prefix: apiPrefix });
+  await app.register(assignmentRoutes, { prefix: apiPrefix });
+  await app.register(submissionRoutes, { prefix: apiPrefix });
+  await app.register(repRoutes, { prefix: apiPrefix });
+
+  await app.register(wsRoutes, { prefix: config.basePath });
 
   return app;
 }

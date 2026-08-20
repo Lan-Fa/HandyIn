@@ -84,3 +84,16 @@ export const repGrantSchema = z.object({
 export const idParamSchema = z.object({
   id: z.string().uuid(),
 });
+
+export const userCreateSchema = z.object({
+  username: z.string().min(1).max(64),
+  password: z.string().min(8).max(256),
+  name: z.string().min(1).max(64).optional(),
+  role: roleSchema,
+});
+
+export const userUpdateSchema = z.object({
+  name: z.string().min(1).max(64).nullable().optional(),
+  role: roleSchema.optional(),
+  password: z.string().min(8).max(256).optional(),
+});
