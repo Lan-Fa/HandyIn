@@ -14,5 +14,9 @@
     "db:generate": "pnpm --filter @handyin/server prisma:generate",
     "db:push": "pnpm --filter @handyin/server prisma:push",
     "db:migrate": "pnpm --filter @handyin/server prisma:migrate"
+  },
+  "devDependencies": {
+    "@prisma/client": "^6.3.0",
+    "prisma": "^6.3.0"
   }
 }
