@@ -4,8 +4,17 @@ import { prisma } from '../src/prisma.js';
 import { resetData, seedUsers, state, testConfig } from './helpers.js';
 
 beforeAll(async () => {
+  await prisma.submission.deleteMany();
+  await prisma.assignmentRep.deleteMany();
+  await prisma.auditLog.deleteMany();
+  await prisma.student.deleteMany();
+  await prisma.assignment.deleteMany();
+  await prisma.class.deleteMany();
+  await prisma.user.deleteMany();
+
   state.app = await buildApp(testConfig());
   await state.app.ready();
+
   const { teacher, rep } = await seedUsers();
   state.teacher = teacher;
   state.rep = rep;
