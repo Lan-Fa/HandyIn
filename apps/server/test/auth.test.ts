@@ -15,7 +15,7 @@ describe('认证', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().user.username).toBe('admin');
-    expect(res.json().user.role).toBe('TEACHER');
+    expect(res.json().user.role).toBe('ADMIN');
     expect(res.headers['set-cookie']).toBeTruthy();
   });
 

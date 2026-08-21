@@ -1,14 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { API, state, teacherCookie } from './helpers.js';
+import { API, createClassAndJoinTeacher, state, teacherCookie } from './helpers.js';
 
 async function setupAssignment() {
-  const cls = await state.app.inject({
-    method: 'POST',
-    url: `${API}/classes`,
-    headers: { cookie: teacherCookie() },
-    payload: { entryYear: 2026, department: '01', classNumber: 1 },
-  });
-  const classId = cls.json().class.id;
+  const { id: classId } = await createClassAndJoinTeacher();
   const stu = await state.app.inject({
     method: 'POST',
     url: `${API}/students`,
@@ -66,13 +60,11 @@ describe('提交（扫码）', () => {
 
   it('非本班学生提交返回 400', async () => {
     const { assignmentId } = await setupAssignment();
-    const cls2 = await state.app.inject({
-      method: 'POST',
-      url: `${API}/classes`,
-      headers: { cookie: teacherCookie() },
-      payload: { entryYear: 2026, department: '02', classNumber: 2 },
+    const { id: classId2 } = await createClassAndJoinTeacher({
+      entryYear: 2026,
+      department: '02',
+      classNumber: 2,
     });
-    const classId2 = cls2.json().class.id;
     const stu2 = await state.app.inject({
       method: 'POST',
       url: `${API}/students`,

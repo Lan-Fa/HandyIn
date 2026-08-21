@@ -72,14 +72,14 @@
 
 ## 阶段六：测试
 
-- [ ] `helpers.ts`：admin/teacher/rep 三角色 seed；`adminCookie()`；`resetData` 增 `teacherClass.deleteMany()`
-- [ ] 存量用例适配权限收紧
-- [ ] 新增：管理员用户管理、批量建班跳过已存在、教师 join/leave、越权 403、导入跳过未加入班级
+- [x] `helpers.ts`：admin/teacher/rep 三角色 seed；`adminCookie()`；`createClassAndJoinTeacher()`；`resetData` 增 `teacherClass.deleteMany()`
+- [x] 存量用例适配权限收紧（auth/classes/students/assignments/submissions）
+- [x] 新增：管理员用户管理（`users.test.ts`）、批量建班跳过已存在、教师 join/leave、越权 403、教师仅操作已加入班级
 
 ## 收尾
 
-- [ ] `pnpm typecheck` / `pnpm build` 全绿（本地验证）
-- [ ] 服务器容器内跑集成测试（`docker compose -f docker-compose.test.yml ...`）
+- [x] `pnpm typecheck` / `pnpm build` 全绿（本地验证）
+- [ ] 服务器容器内跑集成测试（`docker compose -f docker-compose.test.yml ...`）——需用户 push 后执行
 
 ---
 
@@ -93,5 +93,5 @@
 | 三 | 已完成 | （见下） |
 | 四 | 已完成 | （见下） |
 | 五 | 已完成 | （见下） |
-| 六 | 未开始 | — |
-| 收尾 | 未开始 | — |
+| 六 | 已完成 | （见下） |
+| 收尾 | 部分完成 | 本地通过；服务端测试待 push |

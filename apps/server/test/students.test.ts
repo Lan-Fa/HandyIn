@@ -1,14 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { API, state, teacherCookie } from './helpers.js';
+import { API, createClassAndJoinTeacher, state, teacherCookie } from './helpers.js';
 
 async function createClass() {
-  const res = await state.app.inject({
-    method: 'POST',
-    url: `${API}/classes`,
-    headers: { cookie: teacherCookie() },
-    payload: { entryYear: 2026, department: '01', classNumber: 1 },
-  });
-  return res.json().class as { id: string };
+  return createClassAndJoinTeacher();
 }
 
 describe('学生管理', () => {
@@ -22,6 +16,23 @@ describe('学生管理', () => {
     });
     expect(res.statusCode).toBe(201);
     expect(res.json().student.studentNumber).toBe('2026010101');
+  });
+
+  it('教师不能给未加入班级添加学生返回 403', async () => {
+    const { id: classId } = await createClassAndJoinTeacher();
+    // 退出该班级后即为「未加入」
+    await state.app.inject({
+      method: 'DELETE',
+      url: `${API}/classes/${classId}/join`,
+      headers: { cookie: teacherCookie() },
+    });
+    const res = await state.app.inject({
+      method: 'POST',
+      url: `${API}/students`,
+      headers: { cookie: teacherCookie() },
+      payload: { name: '张三', classId, numberInClass: 1 },
+    });
+    expect(res.statusCode).toBe(403);
   });
 
   it('学号冲突返回 409', async () => {

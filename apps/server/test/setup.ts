@@ -9,13 +9,15 @@ beforeAll(async () => {
   await prisma.auditLog.deleteMany();
   await prisma.student.deleteMany();
   await prisma.assignment.deleteMany();
+  await prisma.teacherClass.deleteMany();
   await prisma.class.deleteMany();
   await prisma.user.deleteMany();
 
   state.app = await buildApp(testConfig());
   await state.app.ready();
 
-  const { teacher, rep } = await seedUsers();
+  const { admin, teacher, rep } = await seedUsers();
+  state.admin = admin;
   state.teacher = teacher;
   state.rep = rep;
 });
