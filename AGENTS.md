@@ -20,8 +20,9 @@ pnpm --filter @handyin/server test              # 跑测试（见下方说明）
 ### 测试
 
 - 框架：vitest + fastify.inject（无需起端口），测试文件在 `apps/server/test/`。
-- **本地无 Docker，集成测试依赖 PostgreSQL，只能在服务器容器内跑**；本地只能 `typecheck` / `build`。
-- 服务器跑测试：
+- vitest 按 `projects` 拆分：**单元测试** `test/unit/`（纯函数，无 DB，本地可跑 `pnpm --filter @handyin/server test:unit`）；**集成测试** `test/` 根目录（依赖 PostgreSQL）。
+- **本地无 Docker，集成测试依赖 PostgreSQL，只能在服务器容器内跑**；本地只能跑单元测试 `test:unit`、`typecheck`、`build`。
+- 服务器跑测试（跑全部，含集成）：
 
 ```bash
 ssh aliyun 'cd ~/HandyIn && sudo docker compose -f docker-compose.test.yml up --build --abort-on-container-exit test'

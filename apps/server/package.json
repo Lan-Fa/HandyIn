@@ -10,6 +10,8 @@
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
     "lint": "echo \"no lint for @handyin/server\"",
     "prisma:generate": "prisma generate --schema ../../prisma/schema.prisma",
     "prisma:push": "prisma db push --schema ../../prisma/schema.prisma",
