@@ -2,29 +2,36 @@
 
 > 本文件记录**当前项目状态**，每次阶段完成后更新。长期不变的技术约定见 `AGENTS.md`，完整产品策划见 `docs/PROJECT_PLAN.md`。
 
-## 当前状态：第一阶段（MVP）已完成 ✅
+## 当前状态：第二阶段（角色权限细化）已完成 ✅
 
-第一版 MVP 全部功能已实现、测试通过、并在阿里云服务器部署上线，通过 IP 访问验证通过。
+第一阶段 MVP 已实现、测试通过、部署上线。第二阶段新增：ADMIN 角色 + 教师自助加入班级（`TeacherClass`）、班级批量创建、教师仅能操作自己布置的作业、课代表候选接口、班级部门名称展示。最新代码已 commit 并重新部署到服务器（容器 13 分钟前重建）。
+
+### 待办（下一个 session 接续）
+- 用户登录「网络连接失败」问题正在排查：**服务器端已验证正常**（`101.201.244.237:8080` 登录 401/200 均正常），问题在用户本地 `localhost:8080` → 服务器的转发链路，需用户澄清 `localhost:8080` 的映射方式（SSH 隧道/本地代理/本地 docker）。详见 `docs/SESSION_HANDOFF.md`。
 
 ## 已完成清单
 
 ### 后端（apps/server）
 - 认证：登录/登出/`/auth/me`/修改密码；Argon2id 密码哈希；内存 Session；登录限流（统一报错文案）
-- 班级：CRUD，`entryYear+department+classNumber` 唯一，删除时校验有无学生
-- 学生：手动添加（自动生成学号）/ CSV·Excel 导入（校验+预览+去重）/ 编辑 / 删除 / 二维码生成与打印
-- 作业：CRUD + 状态流转（DRAFT/COLLECTING/FINISHED）+ 已交/未交统计（`stats`）
+- 角色权限：`ADMIN` 角色；`requireAdmin`（仅管理员）；`requireTeacher` 放宽为 TEACHER/ADMIN；`assertClassMember`（班级归属）；`assertAssignmentOwner`（作业归属）
+- 班级：CRUD，`entryYear+department+classNumber` 唯一，删除时校验有无学生；教师自助加入/退出（`TeacherClass` 多对多）；管理员批量建班（`POST /classes/batch`，跳过已存在）；`GET /classes/available`（全部班级 + `joined` 标记）
+- 学生：手动添加（自动生成学号）/ CSV·Excel 导入（校验+预览+去重，跳过未加入班级）/ 编辑 / 删除 / 二维码生成与打印
+- 作业：CRUD + 状态流转（DRAFT/COLLECTING/FINISHED）+ 已交/未交统计（`stats`）；教师仅能操作自己布置的作业（`createdById` 归属）
 - 扫码提交：按 `qrToken` 识别，跨班拦截，`(assignmentId, studentId)` 去重，重复返回 `duplicate`
-- 课代表：按作业授权（`AssignmentRep`，可过期），授权后可扫码
+- 课代表：按作业授权（`AssignmentRep`，可过期），授权后可扫码；候选列表接口 `GET /users/representatives`（教师/管理员）
 - 实时：WebSocket（`/handyin/ws`）广播提交/删除，多人同步
 - 审计：`AuditLog` 记录删除收取记录、授权/回收课代表等关键操作
 
 ### 前端（apps/web）
 - 页面：登录、班级、学生（含导入/二维码）、作业列表/详情、扫码页、用户管理
+- 角色化 UI：导航/路由按角色渲染，`RequireRole` 路由守卫；班级页管理员（单个+批量+删除）/教师（已加入列表+加入班级对话框）两套 UI
+- 班级下拉按部门名称展示（`DEPARTMENT_LABELS`，如「高中部」而非「01部」）；课代表授权候选改用 `/users/representatives`
 - PWA（vite-plugin-pwa + workbox-window，service worker 注册）
 - 扫码：ZXing 连续扫码、音效/震动反馈；离线暂存 IndexedDB 补传（`lib/offline.ts`）
 
 ### 测试
-- vitest + fastify.inject 集成测试，**27 例全绿**，覆盖认证/权限回归/班级/学生/作业/提交（`apps/server/test/`）
+- vitest + fastify.inject，按 `projects` 拆分：**单元测试**（`test/unit/`，纯函数无 DB）+ **集成测试**（`test/` 根，依赖 PostgreSQL）
+- 覆盖认证/权限回归/班级/学生/作业/提交/课代表授权/作业归属越权/课代表候选列表等，unit + integration 共 **100+ 例**（服务器容器内曾全绿 103 例，最新 `a75f223` 新增作业归属与课代表候选测试后待重跑）
 
 ### 部署
 - Docker 多阶段构建 + docker-compose（postgres + server + caddy），子路径 `/handyin`，启动自动 `prisma db push` 建表
@@ -73,3 +80,5 @@
 - 编码阶段：`d61f4af`（server API）、`0c04a35`（前端）、`f7d25f6`（部署）、`1f0ed76`（PWA）
 - 部署修复：`c7369fa`（npm 镜像）、`e144b2d`（Prisma binaryTargets）、`b1b20cc`（同步 hook 挂起修复）、`77622e3`（自动建表）
 - 测试体系：`9e628d2` + `5e1dd5e`（vitest 27 例）
+- 第二阶段·ADMIN 角色：`1e0b031`（计划书）→ `cc42dde`（模型）→ `eebb327`（权限）→ `397aa16`（初始账号）→ `6ad8c6d`（前端）→ `021c667`（测试适配）→ `90d3b44`（单元测试拆分）→ `aac0363`（集成测试补齐）
+- 第二阶段·作业归属：`d9d0aea`（教师仅操作自己作业 + 课代表候选 + 部门显示）→ `a75f223`（作业归属越权与课代表候选测试）
