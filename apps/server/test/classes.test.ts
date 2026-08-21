@@ -19,13 +19,33 @@ describe('班级管理', () => {
     expect(res.statusCode).toBe(401);
   });
 
-  it('REPRESENTATIVE GET /classes 返回 403', async () => {
+  it('REPRESENTATIVE GET /classes 返回所属班级（空）', async () => {
     const res = await state.app.inject({
       method: 'GET',
       url: `${API}/classes`,
       headers: { cookie: repCookie() },
     });
-    expect(res.statusCode).toBe(403);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().classes).toEqual([]);
+  });
+
+  it('REPRESENTATIVE GET /classes 返回已分配的班级', async () => {
+    const c = await createClassAdmin();
+    await state.app.inject({
+      method: 'POST',
+      url: `${API}/classes/${c.id}/reps`,
+      headers: { cookie: adminCookie() },
+      payload: { userId: state.rep.id },
+    });
+
+    const res = await state.app.inject({
+      method: 'GET',
+      url: `${API}/classes`,
+      headers: { cookie: repCookie() },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().classes).toHaveLength(1);
+    expect(res.json().classes[0].id).toBe(c.id);
   });
 
   it('教师不能创建班级返回 403', async () => {
