@@ -23,8 +23,8 @@ export interface Config {
   sessionSecret: string;
   loginRateLimitMax: number;
   loginRateLimitWindow: string;
-  initTeacherUsername: string;
-  initTeacherPassword: string;
+  initAdminUsername: string;
+  initAdminPassword: string;
   logLevel: string;
   maxUploadSize: number;
   maxUploadFiles: number;
@@ -54,8 +54,8 @@ export function loadConfig(): Config {
     sessionSecret: process.env.SESSION_SECRET ?? 'dev-insecure-secret-change-me',
     loginRateLimitMax: Number(process.env.LOGIN_RATE_LIMIT ?? 5),
     loginRateLimitWindow: '1 minute',
-    initTeacherUsername: process.env.INIT_TEACHER_USERNAME ?? 'admin',
-    initTeacherPassword: process.env.INIT_TEACHER_PASSWORD ?? 'change-me-now',
+    initAdminUsername: process.env.INIT_ADMIN_USERNAME ?? 'admin',
+    initAdminPassword: process.env.INIT_ADMIN_PASSWORD ?? 'change-me-now',
     logLevel: process.env.LOG_LEVEL ?? 'info',
     maxUploadSize: parseSize(process.env.MAX_UPLOAD_SIZE ?? '10mb'),
     maxUploadFiles: Number(process.env.MAX_UPLOAD_FILES ?? 1),

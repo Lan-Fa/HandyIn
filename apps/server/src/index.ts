@@ -12,7 +12,7 @@ import { assignmentRoutes } from './routes/assignments.js';
 import { submissionRoutes } from './routes/submissions.js';
 import { repRoutes } from './routes/reps.js';
 import { wsRoutes } from './routes/ws.js';
-import { ensureInitTeacher } from './seed.js';
+import { ensureInitAdmin } from './seed.js';
 import { cleanupSessions } from './lib/session.js';
 
 export async function buildApp(config: Config = loadConfig()): Promise<FastifyInstance> {
@@ -81,7 +81,7 @@ export async function buildApp(config: Config = loadConfig()): Promise<FastifyIn
 
 async function main(): Promise<void> {
   const config = loadConfig();
-  await ensureInitTeacher(config);
+  await ensureInitAdmin(config);
 
   const app = await buildApp(config);
 

@@ -69,16 +69,17 @@ handyin/
 | `SESSION_SECRET` | （生成） | Cookie 签名密钥 |
 | `COOKIE_SECURE` | `false` | IP/HTTP 下为 false；HTTPS 改 true |
 | `LOGIN_RATE_LIMIT` | `5` | 每分钟登录次数上限 |
-| `INIT_TEACHER_USERNAME` | `admin` | 首次启动创建的教师账号 |
-| `INIT_TEACHER_PASSWORD` | （生成） | |
+| `INIT_ADMIN_USERNAME` | `admin` | 首次启动创建的管理员账号 |
+| `INIT_ADMIN_PASSWORD` | （生成） | |
 | `TZ` | `Asia/Shanghai` | |
 | `LOG_LEVEL` | `info` | |
 | `MAX_UPLOAD_SIZE` | `10mb` | 导入文件上限 |
 
 ## 6. 数据模型
 
-- `User`：教师/课代表，`role`、`passwordHash`(Argon2id)
+- `User`：管理员/教师/课代表，`role`（ADMIN/TEACHER/REPRESENTATIVE）、`passwordHash`(Argon2id)
 - `Class`：`entryYear`+`department`+`classNumber`，UNIQUE 三者
+- `TeacherClass`：教师—班级多对多，教师自助加入班级后仅能操作已加入班级
 - `Student`：`studentNumber`(YYYYDDCCNN, UNIQUE)、`qrToken`、解析字段
 - `Assignment`：`classId`、`title`、`status`(DRAFT/COLLECTING/FINISHED)
 - `Submission`：`(assignmentId, studentId)` UNIQUE 去重

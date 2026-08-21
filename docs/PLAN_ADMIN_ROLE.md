@@ -58,9 +58,9 @@
 
 ## 阶段四：初始账号与环境变量
 
-- [ ] `config.ts`：`initTeacher*` → `initAdmin*`
-- [ ] `seed.ts`：创建 `ADMIN`，幂等提升已存在用户为 ADMIN
-- [ ] 同步 `.env.example`、`docker-compose.yml`、`README.md`、`AGENTS.md`、`PROJECT_STATUS.md`、`docs/PLAN.md` 中的 env 引用
+- [x] `config.ts`：`initTeacher*` → `initAdmin*`
+- [x] `seed.ts`：创建 `ADMIN`，幂等提升已存在用户为 ADMIN
+- [x] 同步 `.env.example`、`docker-compose.yml`、`README.md`、`AGENTS.md`、`PROJECT_STATUS.md`、`docs/PLAN.md` 中的 env 引用
 
 ## 阶段五：前端
 
@@ -91,7 +91,7 @@
 | 一 | 已完成 | `cc42dde` |
 | 二 | 已完成 | （见下） |
 | 三 | 已完成 | （见下） |
-| 四 | 未开始 | — |
+| 四 | 已完成 | （见下） |
 | 五 | 未开始 | — |
 | 六 | 未开始 | — |
 | 收尾 | 未开始 | — |

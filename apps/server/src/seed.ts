@@ -2,17 +2,23 @@ import type { Config } from './config.js';
 import { prisma } from './prisma.js';
 import { hashPassword } from './lib/password.js';
 
-export async function ensureInitTeacher(config: Config): Promise<void> {
+export async function ensureInitAdmin(config: Config): Promise<void> {
   const existing = await prisma.user.findUnique({
-    where: { username: config.initTeacherUsername },
+    where: { username: config.initAdminUsername },
   });
-  if (existing) return;
+
+  if (existing) {
+    if (existing.role !== 'ADMIN') {
+      await prisma.user.update({ where: { id: existing.id }, data: { role: 'ADMIN' } });
+    }
+    return;
+  }
 
   await prisma.user.create({
     data: {
-      username: config.initTeacherUsername,
-      passwordHash: await hashPassword(config.initTeacherPassword),
-      role: 'TEACHER',
+      username: config.initAdminUsername,
+      passwordHash: await hashPassword(config.initAdminPassword),
+      role: 'ADMIN',
       name: '管理员',
     },
   });

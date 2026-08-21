@@ -34,8 +34,9 @@
 
 | Model | 关键字段与约束 |
 |---|---|
-| `User` | `username` UNIQUE，`passwordHash`(Argon2id)，`role`（TEACHER/REPRESENTATIVE） |
+| `User` | `username` UNIQUE，`passwordHash`(Argon2id)，`role`（ADMIN/TEACHER/REPRESENTATIVE） |
 | `Class` | `@@unique([entryYear, department, classNumber])` |
+| `TeacherClass` | 教师—班级多对多（教师自助加入班级），`@@unique([teacherId, classId])` |
 | `Student` | `studentNumber` UNIQUE（`YYYYDDCCNN`），`qrToken` UNIQUE，`classId` → Class（Cascade） |
 | `Assignment` | `classId` → Class，`status`（DRAFT/COLLECTING/FINISHED），`createdById` → User |
 | `Submission` | `@@unique([assignmentId, studentId])` 去重，`operatorId` → User |
@@ -49,7 +50,7 @@
 
 - 服务器：阿里云 ECS，IP `101.201.244.237`，用户 `ecs-user`（密码登录后建议启用 SSH，本机 ssh 别名 `aliyun` 见 `~/.ssh/config`）。
 - 部署路径：`~/HandyIn`（SSH clone 自 GitHub，`git@github.com:Lan-Fa/HandyIn.git`，分支 `main`）。
-- 访问：`http://101.201.244.237/handyin/`，初始教师账号 `admin`，密码为用户设置的弱密码（**建议登录后立即修改**；值在服务器 `~/HandyIn/.env` 的 `INIT_TEACHER_PASSWORD`）。
+- 访问：`http://101.201.244.237/handyin/`，初始管理员账号 `admin`，密码为用户设置的弱密码（**建议登录后立即修改**；值在服务器 `~/HandyIn/.env` 的 `INIT_ADMIN_PASSWORD`）。
 - 环境：服务器宿主机**无 node/pnpm**；Docker（29.7.2 + Compose v5.5.0）已装，`/etc/docker/daemon.json` 已配镜像加速器；`node:22-slim`/`postgres:16-alpine`/`caddy:2-alpine` 基础镜像已拉取。
 - 阿里云安全组已放行 80 端口；当前为 HTTP/IP 访问（`COOKIE_SECURE=false`），未启用 HTTPS。
 

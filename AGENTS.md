@@ -56,14 +56,14 @@ ssh aliyun 'cd ~/HandyIn && sudo docker compose -f docker-compose.test.yml up --
 
 8. **学号规则**：`YYYYDDCCNN`（入学年 4 位 + 学部 2 位 + 班级 2 位 + 班内学号 2 位），学部码 `01=高中部 02=初中部 03=小学部`。学生 `studentNumber` 全局 UNIQUE。学生二维码存随机 `qrToken`（`handyin://student/<hex>`），不直接用学号。
 
-9. **权限分层**：身份（登录）→ 角色（TEACHER/REPRESENTATIVE，`requireTeacher`）→ 作业归属（`requireAssignmentCollector`）。课代表按作业授权（`AssignmentRep`），可过期。
+9. **权限分层**：身份（登录）→ 角色（ADMIN/TEACHER/REPRESENTATIVE）→ 班级归属（`assertClassMember`）→ 作业归属（`requireAssignmentCollector`）。`requireTeacher` 放宽为「TEACHER 或 ADMIN」；`requireAdmin` 仅管理员（用户管理、班级建/改/删/批量）。教师需先加入班级（`TeacherClass`）才能操作该班学生/作业；课代表按作业授权（`AssignmentRep`），可过期。
 
 10. **错误处理**：`errors.ts` 的 `AppError`，Fastify `setErrorHandler` 统一转 JSON。登录失败统一文案，不泄露用户是否存在。
 
 ## 部署（服务器）
 
 - Docker Compose（`docker-compose.yml`）：`postgres`（16-alpine，volume `pgdata`）+ `server`（多阶段构建镜像）+ `caddy`（2-alpine，映射 80/443）。
-- 配置：`.env`（从 `.env.example` 复制，必填 `POSTGRES_PASSWORD`、`SESSION_SECRET`、`INIT_TEACHER_PASSWORD`）。
+- 配置：`.env`（从 `.env.example` 复制，必填 `POSTGRES_PASSWORD`、`SESSION_SECRET`、`INIT_ADMIN_PASSWORD`）。
 - 启动：`docker compose up -d --build`；查看：`docker compose logs -f server`。
 - 服务器信息、访问方式见 PROJECT_STATUS.md。
 

@@ -48,7 +48,7 @@ docker compose version
 
 ```bash
 cp .env.example .env
-vim .env   # 至少修改 POSTGRES_PASSWORD、SESSION_SECRET、INIT_TEACHER_PASSWORD
+vim .env   # 至少修改 POSTGRES_PASSWORD、SESSION_SECRET、INIT_ADMIN_PASSWORD
 ```
 
 ### 3. 启动
@@ -60,7 +60,7 @@ docker compose up -d --build
 ### 4. 访问
 
 - 默认通过 IP 访问：`http://服务器IP/handyin/`
-- 初始账号：`.env` 中的 `INIT_TEACHER_USERNAME` / `INIT_TEACHER_PASSWORD`
+- 初始账号：`.env` 中的 `INIT_ADMIN_USERNAME` / `INIT_ADMIN_PASSWORD`
 
 ### 5. 更换端口 / 子路径 / 启用 HTTPS
 
@@ -70,8 +70,8 @@ docker compose up -d --build
 
 ## 使用流程
 
-1. 教师登录 → 创建班级
-2. 手动添加或 CSV/Excel 导入学生
+1. 管理员登录 → 创建班级（支持按年份/学部批量创建）；创建教师账号
+2. 教师登录 → 自助加入所带班级 → 添加或 CSV/Excel 导入学生
 3. 打印学生二维码（贴作业本）
 4. 创建作业并开始收取
 5. 指定课代表（或在「用户」中先创建课代表账号）
