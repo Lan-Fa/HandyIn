@@ -1,0 +1,36 @@
+name: handyin-test
+
+services:
+  postgres_test:
+    image: postgres:16-alpine
+    restart: "no"
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: handyin_test
+      POSTGRES_USER: handyin
+      POSTGRES_PASSWORD: handyin_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U handyin -d handyin_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  test:
+    build:
+      context: .
+      args:
+        HANDYIN_BASE_PATH: /handyin
+        NPM_REGISTRY: https://registry.npmmirror.com
+    image: handyin-test
+    command:
+      - sh
+      - -c
+      - "node_modules/.bin/prisma db push --schema prisma/schema.prisma --skip-generate && cd apps/server && /app/node_modules/.bin/vitest run"
+    environment:
+      DATABASE_URL: postgresql://handyin:handyin_test@postgres_test:5432/handyin_test
+      HANDYIN_BASE_PATH: /handyin
+      SESSION_SECRET: test-secret
+    depends_on:
+      postgres_test:
+        condition: service_healthy
