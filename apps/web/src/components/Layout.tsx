@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
+import { ROLE_LABELS } from '@handyin/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,17 +34,18 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const isAdmin = user?.role === 'ADMIN';
   const isTeacher = user?.role === 'TEACHER';
 
   const navItems: NavItem[] = [
     { to: '/assignments', label: '作业', icon: ClipboardList },
-    ...(isTeacher
+    ...(isAdmin || isTeacher
       ? [
           { to: '/classes', label: '班级', icon: School },
           { to: '/students', label: '学生', icon: Users },
-          { to: '/users', label: '用户', icon: ShieldCheck },
         ]
       : []),
+    ...(isAdmin ? [{ to: '/users', label: '用户', icon: ShieldCheck }] : []),
   ];
 
   const handleLogout = async () => {
@@ -52,7 +54,7 @@ export default function Layout() {
   };
 
   const displayName = user?.name || user?.username || '';
-  const roleLabel = isTeacher ? '教师' : '课代表';
+  const roleLabel = user ? ROLE_LABELS[user.role] : '';
 
   const sidebarContent = (
     <>

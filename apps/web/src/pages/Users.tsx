@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
-import type { Role } from '@handyin/types';
+import { ROLE_LABELS, type Role } from '@handyin/types';
 import { api } from '../lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,12 @@ interface UserRow {
   role: Role;
   createdAt: string;
 }
+
+const ROLE_VARIANT: Record<Role, 'red' | 'indigo' | 'amber'> = {
+  ADMIN: 'red',
+  TEACHER: 'indigo',
+  REPRESENTATIVE: 'amber',
+};
 
 export default function Users() {
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -95,8 +101,8 @@ export default function Users() {
       accessorKey: 'role',
       header: '角色',
       cell: ({ row }) => (
-        <Badge variant={row.original.role === 'TEACHER' ? 'indigo' : 'amber'}>
-          {row.original.role === 'TEACHER' ? '教师' : '课代表'}
+        <Badge variant={ROLE_VARIANT[row.original.role]}>
+          {ROLE_LABELS[row.original.role]}
         </Badge>
       ),
     },
@@ -150,6 +156,7 @@ export default function Users() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="ADMIN">管理员</SelectItem>
                   <SelectItem value="TEACHER">教师</SelectItem>
                   <SelectItem value="REPRESENTATIVE">课代表</SelectItem>
                 </SelectContent>
