@@ -10,6 +10,7 @@ import {
 } from '@handyin/types';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { useCurrentClass } from '../lib/current-class';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -35,6 +36,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog';
 export default function Classes() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
+  const { refreshClasses } = useCurrentClass();
 
   const [classes, setClasses] = useState<ClassDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +45,7 @@ export default function Classes() {
   const [error, setError] = useState('');
   const [batchError, setBatchError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<ClassDto | null>(null);
+  const [leaveTarget, setLeaveTarget] = useState<ClassDto | null>(null);
   const [form, setForm] = useState({
     entryYear: new Date().getFullYear().toString(),
     department: '01' as DepartmentCode,
@@ -121,6 +124,19 @@ export default function Classes() {
     }
   };
 
+  const handleLeave = async () => {
+    if (!leaveTarget) return;
+    try {
+      await api.del(`/classes/${leaveTarget.id}/join`);
+      toast.success('已退出班级');
+      setLeaveTarget(null);
+      await load();
+      await refreshClasses();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '退出失败');
+    }
+  };
+
   const openJoin = async () => {
     setJoinOpen(true);
     setJoinLoading(true);
@@ -143,6 +159,7 @@ export default function Classes() {
       }
       setAvailable((prev) => prev.map((x) => (x.id === c.id ? { ...x, joined: !c.joined } : x)));
       await load();
+      await refreshClasses();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '操作失败');
     }
@@ -192,9 +209,13 @@ export default function Classes() {
                   <span className="font-medium">{classLabel(c)}</span>
                   <span className="text-sm text-muted-foreground">{c.studentCount} 名学生</span>
                 </div>
-                {isAdmin && (
+                {isAdmin ? (
                   <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(c)}>
                     删除
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="sm" onClick={() => setLeaveTarget(c)}>
+                    退出班级
                   </Button>
                 )}
               </li>
@@ -372,6 +393,15 @@ export default function Classes() {
         description={deleteTarget ? `确定删除班级「${classLabel(deleteTarget)}」？` : undefined}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         onConfirm={handleDelete}
+      />
+
+      <ConfirmDialog
+        open={leaveTarget !== null}
+        title="退出班级"
+        description={leaveTarget ? `确定退出班级「${classLabel(leaveTarget)}」？退出后需重新加入才能管理其学生与作业。` : undefined}
+        confirmText="退出"
+        onOpenChange={(open) => !open && setLeaveTarget(null)}
+        onConfirm={handleLeave}
       />
     </div>
   );

@@ -4,6 +4,8 @@ import { toast } from 'sonner';
 import { ChevronRight, Plus } from 'lucide-react';
 import { DEPARTMENT_LABELS, type AssignmentDto, type AssignmentStatus, type ClassDto } from '@handyin/types';
 import { api } from '../lib/api';
+import { useAuth } from '../lib/auth';
+import { useCurrentClass } from '../lib/current-class';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -11,6 +13,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import {
   Dialog,
   DialogContent,
@@ -40,11 +43,17 @@ const STATUS_COLOR: Record<AssignmentStatus, 'slate' | 'green' | 'amber'> = {
 
 export default function Assignments() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isTeacher = user?.role === 'TEACHER';
+  const isAdmin = user?.role === 'ADMIN';
+  const canDelete = isTeacher || isAdmin;
+  const { currentClassId } = useCurrentClass();
   const [assignments, setAssignments] = useState<AssignmentDto[]>([]);
   const [classes, setClasses] = useState<ClassDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<AssignmentDto | null>(null);
   const [form, setForm] = useState({ classId: '', title: '', description: '' });
 
   const load = async () => {
@@ -58,6 +67,13 @@ export default function Assignments() {
       api.get<{ classes: ClassDto[] }>('/classes').then((d) => setClasses(d.classes)),
     ]).finally(() => setLoading(false));
   }, []);
+
+  const visibleAssignments =
+    isTeacher && currentClassId
+      ? assignments.filter((a) => a.classId === currentClassId)
+      : assignments;
+
+  const currentClass = classes.find((c) => c.id === currentClassId);
 
   const handleCreate = async () => {
     setError('');
@@ -76,6 +92,23 @@ export default function Assignments() {
     }
   };
 
+  const openCreate = () => {
+    setForm((f) => ({ ...f, classId: isTeacher && currentClassId ? currentClassId : f.classId }));
+    setOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await api.del(`/assignments/${deleteTarget.id}`);
+      toast.success('作业已删除');
+      setDeleteTarget(null);
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '删除失败');
+    }
+  };
+
   const classLabel = (c: ClassDto) => `${c.entryYear}级${DEPARTMENT_LABELS[c.department]}${c.classNumber}班`;
 
   return (
@@ -83,9 +116,13 @@ export default function Assignments() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">作业</h1>
-          <p className="mt-1 text-sm text-muted-foreground">创建作业并实时统计收取进度。</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {isTeacher && currentClass
+              ? `${classLabel(currentClass)} · 创建作业并实时统计收取进度。`
+              : '创建作业并实时统计收取进度。'}
+          </p>
         </div>
-        <Button onClick={() => setOpen(true)}>
+        <Button onClick={openCreate}>
           <Plus className="size-4" />
           新建作业
         </Button>
@@ -94,11 +131,11 @@ export default function Assignments() {
       <Card>
         {loading ? (
           <EmptyState text="加载中…" />
-        ) : assignments.length === 0 ? (
+        ) : visibleAssignments.length === 0 ? (
           <EmptyState text="暂无作业，点击右上角新建" />
         ) : (
           <ul className="divide-y divide-border">
-            {assignments.map((a) => (
+            {visibleAssignments.map((a) => (
               <li
                 key={a.id}
                 className="group flex cursor-pointer items-center justify-between px-5 py-4 transition-colors hover:bg-muted/50"
@@ -112,6 +149,18 @@ export default function Assignments() {
                   <span>
                     {a.submittedCount ?? 0} / {a.totalCount ?? 0}
                   </span>
+                  {canDelete && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(a);
+                      }}
+                    >
+                      删除
+                    </Button>
+                  )}
                   <ChevronRight className="size-4 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
                 </div>
               </li>
@@ -170,6 +219,14 @@ export default function Assignments() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="删除作业"
+        description={deleteTarget ? `确定删除作业「${deleteTarget.title}」？该作业下的收取记录将一并删除。` : undefined}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

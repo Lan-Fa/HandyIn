@@ -12,6 +12,7 @@ import {
   type StudentDto,
 } from '@handyin/types';
 import { api } from '../lib/api';
+import { useCurrentClass } from '../lib/current-class';
 import { qrContent } from '../lib/qr';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -53,6 +54,7 @@ const REASON_LABEL: Record<ImportValidationIssue['reason'], string> = {
 };
 
 export default function Students() {
+  const { currentClassId } = useCurrentClass();
   const [classes, setClasses] = useState<ClassDto[]>([]);
   const [classId, setClassId] = useState('');
   const [students, setStudents] = useState<StudentDto[]>([]);
@@ -87,6 +89,12 @@ export default function Students() {
   useEffect(() => {
     loadClasses().finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (currentClassId && classes.some((c) => c.id === currentClassId)) {
+      setClassId(currentClassId);
+    }
+  }, [currentClassId, classes]);
 
   useEffect(() => {
     if (classId) loadStudents(classId);

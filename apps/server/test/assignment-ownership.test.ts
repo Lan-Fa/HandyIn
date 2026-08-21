@@ -102,6 +102,23 @@ describe('作业归属（教师仅能操作自己布置的作业）', () => {
     expect(res.statusCode).toBe(403);
   });
 
+  it('同班非布置者老师删除他人作业返回 403', async () => {
+    const { classId, assignmentId } = await setupOwnedAssignment();
+    const t2 = await ensureTeacher2();
+    await state.app.inject({
+      method: 'POST',
+      url: `${API}/classes/${classId}/join`,
+      headers: { cookie: t2 },
+    });
+
+    const res = await state.app.inject({
+      method: 'DELETE',
+      url: `${API}/assignments/${assignmentId}`,
+      headers: { cookie: t2 },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
   it('同班非布置者老师扫码提交他人作业返回 403', async () => {
     const { classId, assignmentId, qrToken } = await setupOwnedAssignment();
     const t2 = await ensureTeacher2();

@@ -64,6 +64,8 @@ export default function AssignmentDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isTeacher = user?.role === 'TEACHER';
+  const isAdmin = user?.role === 'ADMIN';
+  const canDelete = isTeacher || isAdmin;
 
   const [assignment, setAssignment] = useState<AssignmentDto | null>(null);
   const [stats, setStats] = useState<AssignmentStats | null>(null);
@@ -77,6 +79,7 @@ export default function AssignmentDetail() {
   const [repOpen, setRepOpen] = useState(false);
   const [repUserId, setRepUserId] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<SubmissionRow | null>(null);
+  const [deleteAssignmentTarget, setDeleteAssignmentTarget] = useState<AssignmentDto | null>(null);
 
   const loadStats = useCallback(async () => {
     const d = await api.get<{ stats: AssignmentStats; submitted: SubmissionRow[]; unsubmitted: SubmissionRow[] }>(
@@ -156,6 +159,17 @@ export default function AssignmentDetail() {
     }
   };
 
+  const deleteAssignment = async () => {
+    if (!deleteAssignmentTarget) return;
+    try {
+      await api.del(`/assignments/${deleteAssignmentTarget.id}`);
+      toast.success('作业已删除');
+      navigate('/assignments');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '删除失败');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-16">
@@ -201,6 +215,16 @@ export default function AssignmentDetail() {
           {isTeacher && assignment.status === 'COLLECTING' && (
             <Button variant="outline" onClick={() => setStatus('FINISHED')}>
               结束收取
+            </Button>
+          )}
+          {isTeacher && assignment.status === 'FINISHED' && (
+            <Button variant="outline" onClick={() => setStatus('COLLECTING')}>
+              重新开启
+            </Button>
+          )}
+          {canDelete && (
+            <Button variant="ghost" onClick={() => setDeleteAssignmentTarget(assignment)}>
+              删除作业
             </Button>
           )}
         </div>
@@ -358,6 +382,18 @@ export default function AssignmentDetail() {
         description={deleteTarget ? `确定删除「${deleteTarget.name}」的收取记录？` : undefined}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         onConfirm={deleteSubmission}
+      />
+
+      <ConfirmDialog
+        open={deleteAssignmentTarget !== null}
+        title="删除作业"
+        description={
+          deleteAssignmentTarget
+            ? `确定删除作业「${deleteAssignmentTarget.title}」？该作业下的收取记录将一并删除。`
+            : undefined
+        }
+        onOpenChange={(open) => !open && setDeleteAssignmentTarget(null)}
+        onConfirm={deleteAssignment}
       />
     </div>
   );

@@ -70,6 +70,65 @@ describe('作业管理', () => {
     expect(res.json().assignment.status).toBe('COLLECTING');
   });
 
+  it('作业结束后可重新开启', async () => {
+    const { id: classId } = await createClass();
+    const created = await state.app.inject({
+      method: 'POST',
+      url: `${API}/assignments`,
+      headers: { cookie: teacherCookie() },
+      payload: { classId, title: '数学作业' },
+    });
+    const id = created.json().assignment.id;
+
+    await state.app.inject({
+      method: 'PUT',
+      url: `${API}/assignments/${id}`,
+      headers: { cookie: teacherCookie() },
+      payload: { status: 'COLLECTING' },
+    });
+    const finished = await state.app.inject({
+      method: 'PUT',
+      url: `${API}/assignments/${id}`,
+      headers: { cookie: teacherCookie() },
+      payload: { status: 'FINISHED' },
+    });
+    expect(finished.json().assignment.status).toBe('FINISHED');
+
+    const reopened = await state.app.inject({
+      method: 'PUT',
+      url: `${API}/assignments/${id}`,
+      headers: { cookie: teacherCookie() },
+      payload: { status: 'COLLECTING' },
+    });
+    expect(reopened.statusCode).toBe(200);
+    expect(reopened.json().assignment.status).toBe('COLLECTING');
+  });
+
+  it('教师删除自己的作业', async () => {
+    const { id: classId } = await createClass();
+    const created = await state.app.inject({
+      method: 'POST',
+      url: `${API}/assignments`,
+      headers: { cookie: teacherCookie() },
+      payload: { classId, title: '数学作业' },
+    });
+    const id = created.json().assignment.id;
+
+    const del = await state.app.inject({
+      method: 'DELETE',
+      url: `${API}/assignments/${id}`,
+      headers: { cookie: teacherCookie() },
+    });
+    expect(del.statusCode).toBe(200);
+
+    const list = await state.app.inject({
+      method: 'GET',
+      url: `${API}/assignments`,
+      headers: { cookie: teacherCookie() },
+    });
+    expect(list.json().assignments.some((a: { id: string }) => a.id === id)).toBe(false);
+  });
+
   it('stats 返回 200', async () => {
     const { id: classId } = await createClass();
     const created = await state.app.inject({

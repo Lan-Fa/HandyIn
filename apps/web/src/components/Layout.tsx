@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   ClipboardList,
@@ -11,7 +11,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
-import { ROLE_LABELS } from '@handyin/types';
+import { useCurrentClass } from '../lib/current-class';
+import { DEPARTMENT_LABELS, ROLE_LABELS, type ClassDto } from '@handyin/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,6 +23,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 
 interface NavItem {
@@ -36,6 +44,17 @@ export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const isAdmin = user?.role === 'ADMIN';
   const isTeacher = user?.role === 'TEACHER';
+  const { currentClassId, setCurrentClassId, classes } = useCurrentClass();
+
+  useEffect(() => {
+    if (!isTeacher || classes.length === 0) return;
+    const first = classes[0]!;
+    const valid = classes.some((c) => c.id === currentClassId);
+    if (!valid) setCurrentClassId(first.id);
+  }, [isTeacher, classes, currentClassId, setCurrentClassId]);
+
+  const classLabel = (c: ClassDto) =>
+    `${c.entryYear}级${DEPARTMENT_LABELS[c.department]}${c.classNumber}班`;
 
   const navItems: NavItem[] = [
     { to: '/assignments', label: '作业', icon: ClipboardList },
@@ -68,6 +87,26 @@ export default function Layout() {
         </div>
       </div>
       <Separator />
+      {isTeacher && (
+        <>
+          <div className="p-3">
+            <div className="mb-2 px-1 text-xs font-medium text-muted-foreground">当前班级</div>
+            <Select value={currentClassId ?? undefined} onValueChange={setCurrentClassId}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="选择班级" />
+              </SelectTrigger>
+              <SelectContent>
+                {classes.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {classLabel(c)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Separator />
+        </>
+      )}
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {navItems.map((item) => (
           <NavLink

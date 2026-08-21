@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth';
+import { CurrentClassProvider } from './lib/current-class';
 import { BASE_PATH } from './lib/api';
 import Layout from './components/Layout';
 import { Spinner } from './components/ui/spinner';
@@ -43,55 +44,57 @@ function RequireRole({ roles, children }: { roles: Role[]; children: ReactNode }
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter basename={BASE_PATH}>
-        <Toaster />
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/scan/:assignmentId"
-            element={
-              <Protected>
-                <Scan />
-              </Protected>
-            }
-          />
-          <Route
-            element={
-              <Protected>
-                <Layout />
-              </Protected>
-            }
-          >
-            <Route path="/" element={<Navigate to="/assignments" replace />} />
+      <CurrentClassProvider>
+        <BrowserRouter basename={BASE_PATH}>
+          <Toaster />
+          <Routes>
+            <Route path="/login" element={<Login />} />
             <Route
-              path="/classes"
+              path="/scan/:assignmentId"
               element={
-                <RequireRole roles={['ADMIN', 'TEACHER']}>
-                  <Classes />
-                </RequireRole>
+                <Protected>
+                  <Scan />
+                </Protected>
               }
             />
             <Route
-              path="/students"
               element={
-                <RequireRole roles={['ADMIN', 'TEACHER']}>
-                  <Students />
-                </RequireRole>
+                <Protected>
+                  <Layout />
+                </Protected>
               }
-            />
-            <Route path="/assignments" element={<Assignments />} />
-            <Route path="/assignments/:id" element={<AssignmentDetail />} />
-            <Route
-              path="/users"
-              element={
-                <RequireRole roles={['ADMIN']}>
-                  <Users />
-                </RequireRole>
-              }
-            />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+            >
+              <Route path="/" element={<Navigate to="/assignments" replace />} />
+              <Route
+                path="/classes"
+                element={
+                  <RequireRole roles={['ADMIN', 'TEACHER']}>
+                    <Classes />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="/students"
+                element={
+                  <RequireRole roles={['ADMIN', 'TEACHER']}>
+                    <Students />
+                  </RequireRole>
+                }
+              />
+              <Route path="/assignments" element={<Assignments />} />
+              <Route path="/assignments/:id" element={<AssignmentDetail />} />
+              <Route
+                path="/users"
+                element={
+                  <RequireRole roles={['ADMIN']}>
+                    <Users />
+                  </RequireRole>
+                }
+              />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </CurrentClassProvider>
     </AuthProvider>
   );
 }
