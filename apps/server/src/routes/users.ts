@@ -3,11 +3,11 @@ import { userCreateSchema, userUpdateSchema } from '@handyin/validation';
 import type { Role } from '@handyin/types';
 import { prisma } from '../prisma.js';
 import { Errors } from '../errors.js';
-import { requireTeacher } from '../plugins/auth.js';
+import { requireAdmin } from '../plugins/auth.js';
 import { hashPassword } from '../lib/password.js';
 
 export async function userRoutes(app: FastifyInstance): Promise<void> {
-  app.addHook('preHandler', requireTeacher);
+  app.addHook('preHandler', requireAdmin);
 
   app.get('/users', async () => {
     const users = await prisma.user.findMany({

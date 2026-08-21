@@ -15,8 +15,14 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply):
 }
 
 export async function requireTeacher(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  // 教师与管理员均为「教职工」，可管理学生/作业/课代表
   if (!request.user) throw Errors.unauthorized();
-  if (request.user.role !== 'TEACHER') throw Errors.forbidden();
+  if (request.user.role !== 'TEACHER' && request.user.role !== 'ADMIN') throw Errors.forbidden();
+}
+
+export async function requireAdmin(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  if (!request.user) throw Errors.unauthorized();
+  if (request.user.role !== 'ADMIN') throw Errors.forbidden();
 }
 
 export async function requireCollector(request: FastifyRequest, reply: FastifyReply): Promise<void> {

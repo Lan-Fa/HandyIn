@@ -6,10 +6,23 @@ import { subscribe, unsubscribe } from '../lib/realtime.js';
 async function authorize(request: FastifyRequest): Promise<string | null> {
   const user = request.user;
   if (!user) return null;
-  if (user.role === 'TEACHER') return user.id;
+  if (user.role === 'ADMIN') return user.id;
 
   const assignmentId = (request.query as { assignmentId?: string }).assignmentId;
   if (!assignmentId) return null;
+
+  if (user.role === 'TEACHER') {
+    const assignment = await prisma.assignment.findUnique({
+      where: { id: assignmentId },
+      select: { classId: true },
+    });
+    if (!assignment) return null;
+    const membership = await prisma.teacherClass.findUnique({
+      where: { teacherId_classId: { teacherId: user.id, classId: assignment.classId } },
+    });
+    return membership ? user.id : null;
+  }
+
   const grant = await prisma.assignmentRep.findUnique({
     where: { assignmentId_userId: { assignmentId, userId: user.id } },
   });

@@ -1,9 +1,10 @@
 import type { FastifyInstance } from 'fastify';
-import { classCreateSchema, classUpdateSchema } from '@handyin/validation';
-import type { ClassDto } from '@handyin/types';
+import { classBatchCreateSchema, classCreateSchema, classUpdateSchema } from '@handyin/validation';
+import type { ClassDto, DepartmentCode, JoinableClassDto } from '@handyin/types';
 import { prisma } from '../prisma.js';
 import { Errors } from '../errors.js';
-import { requireTeacher } from '../plugins/auth.js';
+import { requireAdmin, requireTeacher } from '../plugins/auth.js';
+import { assertClassMember } from '../lib/permissions.js';
 
 function toDto(c: {
   id: string;
@@ -22,18 +23,75 @@ function toDto(c: {
 }
 
 export async function classRoutes(app: FastifyInstance): Promise<void> {
-  app.addHook('preHandler', requireTeacher);
+  // 管理员与教师均可查看班级；教师仅能查看已加入的班级
+  app.get('/classes', { preHandler: requireTeacher }, async (request) => {
+    const user = request.user!;
+    if (user.role === 'ADMIN') {
+      const classes = await prisma.class.findMany({
+        orderBy: [{ entryYear: 'desc' }, { department: 'asc' }, { classNumber: 'asc' }],
+        include: { _count: { select: { students: true } } },
+      });
+      return { classes: classes.map(toDto) };
+    }
 
-  app.get('/classes', async () => {
+    const memberships = await prisma.teacherClass.findMany({
+      where: { teacherId: user.id },
+      include: { class: { include: { _count: { select: { students: true } } } } },
+      orderBy: [
+        { class: { entryYear: 'desc' } },
+        { class: { department: 'asc' } },
+        { class: { classNumber: 'asc' } },
+      ],
+    });
+    return { classes: memberships.map((m) => toDto(m.class)) };
+  });
+
+  // 供教师浏览全部班级并自主加入
+  app.get('/classes/available', { preHandler: requireTeacher }, async (request) => {
+    const user = request.user!;
     const classes = await prisma.class.findMany({
       orderBy: [{ entryYear: 'desc' }, { department: 'asc' }, { classNumber: 'asc' }],
       include: { _count: { select: { students: true } } },
     });
-    return { classes: classes.map(toDto) };
+    const memberships = await prisma.teacherClass.findMany({
+      where: { teacherId: user.id },
+      select: { classId: true },
+    });
+    const joined = new Set(memberships.map((m) => m.classId));
+    const result: JoinableClassDto[] = classes.map((c) => ({ ...toDto(c), joined: joined.has(c.id) }));
+    return { classes: result };
   });
 
-  app.get('/classes/:id', async (request) => {
+  // 教师自助加入班级（需先存在班级，由管理员创建）
+  app.post('/classes/:id/join', { preHandler: requireTeacher }, async (request, reply) => {
+    const user = request.user!;
+    if (user.role !== 'TEACHER') throw Errors.forbidden();
+
     const { id } = request.params as { id: string };
+    const cls = await prisma.class.findUnique({ where: { id } });
+    if (!cls) throw Errors.notFound('班级');
+
+    await prisma.teacherClass.upsert({
+      where: { teacherId_classId: { teacherId: user.id, classId: id } },
+      create: { teacherId: user.id, classId: id },
+      update: {},
+    });
+    return reply.status(201).send({ ok: true });
+  });
+
+  // 教师退出班级
+  app.delete('/classes/:id/join', { preHandler: requireTeacher }, async (request) => {
+    const user = request.user!;
+    if (user.role !== 'TEACHER') throw Errors.forbidden();
+
+    const { id } = request.params as { id: string };
+    await prisma.teacherClass.deleteMany({ where: { teacherId: user.id, classId: id } });
+    return { ok: true };
+  });
+
+  app.get('/classes/:id', { preHandler: requireTeacher }, async (request) => {
+    const { id } = request.params as { id: string };
+    await assertClassMember(request, id);
     const c = await prisma.class.findUnique({
       where: { id },
       include: { _count: { select: { students: true } } },
@@ -42,7 +100,7 @@ export async function classRoutes(app: FastifyInstance): Promise<void> {
     return { class: toDto(c) };
   });
 
-  app.post('/classes', async (request, reply) => {
+  app.post('/classes', { preHandler: requireAdmin }, async (request, reply) => {
     const body = classCreateSchema.safeParse(request.body);
     if (!body.success) throw Errors.badRequest(body.error.issues[0]?.message ?? '参数错误');
 
@@ -56,7 +114,36 @@ export async function classRoutes(app: FastifyInstance): Promise<void> {
     return reply.status(201).send({ class: toDto(c) });
   });
 
-  app.put('/classes/:id', async (request) => {
+  app.post('/classes/batch', { preHandler: requireAdmin }, async (request, reply) => {
+    const body = classBatchCreateSchema.safeParse(request.body);
+    if (!body.success) throw Errors.badRequest(body.error.issues[0]?.message ?? '参数错误');
+
+    const { entryYear, department, count, startFrom } = body.data;
+
+    const { created, skipped } = await prisma.$transaction(async (tx) => {
+      const created: { entryYear: number; department: DepartmentCode; classNumber: number }[] = [];
+      const skipped: { entryYear: number; department: DepartmentCode; classNumber: number }[] = [];
+      for (let i = 0; i < count; i++) {
+        const classNumber = startFrom + i;
+        const existing = await tx.class.findUnique({
+          where: { entryYear_department_classNumber: { entryYear, department, classNumber } },
+        });
+        if (existing) {
+          skipped.push({ entryYear, department, classNumber });
+          continue;
+        }
+        await tx.class.create({ data: { entryYear, department, classNumber } });
+        created.push({ entryYear, department, classNumber });
+      }
+      return { created, skipped };
+    });
+
+    return reply.status(201).send({
+      result: { created, skipped, total: created.length, skippedCount: skipped.length },
+    });
+  });
+
+  app.put('/classes/:id', { preHandler: requireAdmin }, async (request) => {
     const { id } = request.params as { id: string };
     const body = classUpdateSchema.safeParse(request.body);
     if (!body.success) throw Errors.badRequest(body.error.issues[0]?.message ?? '参数错误');
@@ -71,7 +158,7 @@ export async function classRoutes(app: FastifyInstance): Promise<void> {
     return { class: toDto(c) };
   });
 
-  app.delete('/classes/:id', async (request) => {
+  app.delete('/classes/:id', { preHandler: requireAdmin }, async (request) => {
     const { id } = request.params as { id: string };
     const studentCount = await prisma.student.count({ where: { classId: id } });
     if (studentCount > 0) {
@@ -81,8 +168,9 @@ export async function classRoutes(app: FastifyInstance): Promise<void> {
     return { ok: true };
   });
 
-  app.get('/classes/:id/students', async (request) => {
+  app.get('/classes/:id/students', { preHandler: requireTeacher }, async (request) => {
     const { id } = request.params as { id: string };
+    await assertClassMember(request, id);
     const students = await prisma.student.findMany({
       where: { classId: id },
       orderBy: { numberInClass: 'asc' },

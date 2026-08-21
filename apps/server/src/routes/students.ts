@@ -5,10 +5,11 @@ import {
   parseStudentNumber,
   buildStudentNumber,
 } from '@handyin/validation';
-import type { DepartmentCode, ImportResult } from '@handyin/types';
+import type { DepartmentCode, ImportResult, ImportValidationIssue } from '@handyin/types';
 import { prisma } from '../prisma.js';
 import { Errors } from '../errors.js';
 import { requireTeacher } from '../plugins/auth.js';
+import { assertClassMember } from '../lib/permissions.js';
 import { generateQrToken } from '../lib/qrcode.js';
 import { parseCsvText, parseXlsxBuffer, validateImportRows } from '../lib/import.js';
 
@@ -51,7 +52,23 @@ export async function studentRoutes(app: FastifyInstance): Promise<void> {
   app.addHook('preHandler', requireTeacher);
 
   app.get('/students', async (request) => {
+    const user = request.user!;
     const query = request.query as { classId?: string };
+
+    if (user.role === 'TEACHER') {
+      const memberships = await prisma.teacherClass.findMany({
+        where: { teacherId: user.id },
+        select: { classId: true },
+      });
+      const classIds = memberships.map((m) => m.classId);
+      const effective = query.classId ? classIds.filter((c) => c === query.classId) : classIds;
+      const students = await prisma.student.findMany({
+        where: { classId: { in: effective } },
+        orderBy: [{ studentNumber: 'asc' }],
+      });
+      return { students: students.map(studentToDto) };
+    }
+
     const students = await prisma.student.findMany({
       where: query.classId ? { classId: query.classId } : undefined,
       orderBy: [{ studentNumber: 'asc' }],
@@ -66,6 +83,7 @@ export async function studentRoutes(app: FastifyInstance): Promise<void> {
     const { name, classId, numberInClass, studentNumber } = body.data;
     const cls = await prisma.class.findUnique({ where: { id: classId } });
     if (!cls) throw Errors.notFound('班级');
+    await assertClassMember(request, classId);
 
     let parsed;
     if (studentNumber) {
@@ -112,6 +130,7 @@ export async function studentRoutes(app: FastifyInstance): Promise<void> {
     const { name, studentNumber } = body.data;
     const existing = await prisma.student.findUnique({ where: { id } });
     if (!existing) throw Errors.notFound('学生');
+    await assertClassMember(request, existing.classId);
 
     if (studentNumber !== existing.studentNumber) {
       const parsed = parseStudentNumber(studentNumber);
@@ -129,6 +148,7 @@ export async function studentRoutes(app: FastifyInstance): Promise<void> {
         },
       });
       if (!cls) throw Errors.badRequest('对应班级不存在，请先创建班级');
+      await assertClassMember(request, cls.id);
 
       const student = await prisma.student.update({
         where: { id },
@@ -151,6 +171,9 @@ export async function studentRoutes(app: FastifyInstance): Promise<void> {
 
   app.delete('/students/:id', async (request) => {
     const { id } = request.params as { id: string };
+    const existing = await prisma.student.findUnique({ where: { id }, select: { classId: true } });
+    if (!existing) throw Errors.notFound('学生');
+    await assertClassMember(request, existing.classId);
     await prisma.student.delete({ where: { id } });
     return { ok: true };
   });
@@ -175,8 +198,31 @@ export async function studentRoutes(app: FastifyInstance): Promise<void> {
     const existing = await prisma.student.findMany({ select: { studentNumber: true } });
     const existingNumbers = new Set(existing.map((s) => s.studentNumber));
 
-    const preview = validateImportRows(raw, existingNumbers);
-    const skipped = preview.issues;
+    // 教师只能导入「已加入班级」的学生，其余跳过并提示
+    const classSkipped: ImportValidationIssue[] = [];
+    let importableRaw = raw;
+    if (request.user!.role === 'TEACHER') {
+      const memberships = await prisma.teacherClass.findMany({
+        where: { teacherId: request.user!.id },
+        select: { class: { select: { entryYear: true, department: true, classNumber: true } } },
+      });
+      const joined = new Set(
+        memberships.map((m) => `${m.class.entryYear}|${m.class.department}|${m.class.classNumber}`),
+      );
+      const allowed: typeof raw = [];
+      for (const r of raw) {
+        const parsed = parseStudentNumber(r.studentNumber);
+        if (parsed && !joined.has(`${parsed.entryYear}|${parsed.department}|${parsed.classNumber}`)) {
+          classSkipped.push({ row: r.row, studentNumber: r.studentNumber, name: r.name, reason: 'not_joined_class' });
+        } else {
+          allowed.push(r);
+        }
+      }
+      importableRaw = allowed;
+    }
+
+    const preview = validateImportRows(importableRaw, existingNumbers);
+    const skipped: ImportValidationIssue[] = [...classSkipped, ...preview.issues];
 
     let created = 0;
     if (preview.valid.length > 0) {

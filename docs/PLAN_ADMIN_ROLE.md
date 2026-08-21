@@ -33,28 +33,28 @@
 
 ## 阶段二：后端权限层（保留 `requireTeacher` 原名，放宽含 ADMIN）
 
-- [ ] `apps/server/src/plugins/auth.ts`
+- [x] `apps/server/src/plugins/auth.ts`
   - 新增 `requireAdmin`（仅 ADMIN）
   - `requireTeacher` 放宽为「TEACHER 或 ADMIN」
-- [ ] `apps/server/src/lib/permissions.ts`
+- [x] `apps/server/src/lib/permissions.ts`
   - `requireAssignmentCollector`：ADMIN 放行；TEACHER 校验班级成员；REPRESENTATIVE 走授权
-  - 新增 `requireClassMember(request, classId)`
+  - 新增 `assertClassMember(request, classId)`
 
 ## 阶段三：后端路由
 
-- [ ] `routes/users.ts` → `requireAdmin`
-- [ ] `routes/classes.ts`
+- [x] `routes/users.ts` → `requireAdmin`
+- [x] `routes/classes.ts`
   - `GET /classes`：教师只返回已加入；管理员返回全部
   - `GET /classes/available`：全部班级 + `joined` 标记（教师浏览用）
   - `POST /classes/batch`：管理员批量建班，跳过已存在
   - `POST /classes/:id/join`、`DELETE /classes/:id/join`：教师自助加入/退出
   - 单个建/改/删 → `requireAdmin`
   - 静态路由 (`available`/`batch`) 注册在 `:id` 之前
-- [ ] `routes/students.ts` → `requireTeacher` + 成员校验；导入跳过未加入班级
-- [ ] `routes/assignments.ts` → 教师只操作已加入班级；列表按角色过滤
-- [ ] `routes/reps.ts` → `requireTeacher` + 成员校验
-- [ ] `routes/submissions.ts` → 删除走成员校验
-- [ ] `routes/ws.ts` → ADMIN 放行；TEACHER 加成员校验
+- [x] `routes/students.ts` → `requireTeacher` + 成员校验；导入跳过未加入班级
+- [x] `routes/assignments.ts` → 教师只操作已加入班级；列表按角色过滤
+- [x] `routes/reps.ts` → `requireTeacher` + 成员校验
+- [x] `routes/submissions.ts` → 删除走成员校验
+- [x] `routes/ws.ts` → ADMIN 放行；TEACHER 加成员校验
 
 ## 阶段四：初始账号与环境变量
 
@@ -87,10 +87,10 @@
 
 | 阶段 | 状态 | commit |
 |---|---|---|
-| 计划书 | 进行中 | — |
-| 一 | 未开始 | — |
-| 二 | 未开始 | — |
-| 三 | 未开始 | — |
+| 计划书 | 已完成 | `1e0b031` |
+| 一 | 已完成 | `cc42dde` |
+| 二 | 已完成 | （见下） |
+| 三 | 已完成 | （见下） |
 | 四 | 未开始 | — |
 | 五 | 未开始 | — |
 | 六 | 未开始 | — |

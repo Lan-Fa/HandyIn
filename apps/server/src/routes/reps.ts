@@ -3,12 +3,17 @@ import { repGrantSchema } from '@handyin/validation';
 import { prisma } from '../prisma.js';
 import { Errors } from '../errors.js';
 import { requireTeacher } from '../plugins/auth.js';
+import { assertClassMember } from '../lib/permissions.js';
 
 export async function repRoutes(app: FastifyInstance): Promise<void> {
   app.addHook('preHandler', requireTeacher);
 
   app.get('/assignments/:id/reps', async (request) => {
     const { id } = request.params as { id: string };
+    const assignment = await prisma.assignment.findUnique({ where: { id }, select: { classId: true } });
+    if (!assignment) throw Errors.notFound('作业');
+    await assertClassMember(request, assignment.classId);
+
     const reps = await prisma.assignmentRep.findMany({
       where: { assignmentId: id },
       include: { user: { select: { id: true, username: true, name: true, role: true } } },
@@ -33,6 +38,7 @@ export async function repRoutes(app: FastifyInstance): Promise<void> {
 
     const assignment = await prisma.assignment.findUnique({ where: { id } });
     if (!assignment) throw Errors.notFound('作业');
+    await assertClassMember(request, assignment.classId);
 
     const user = await prisma.user.findUnique({ where: { id: body.data.userId } });
     if (!user) throw Errors.notFound('用户');
@@ -66,6 +72,10 @@ export async function repRoutes(app: FastifyInstance): Promise<void> {
 
   app.delete('/assignments/:id/reps/:userId', async (request) => {
     const { id, userId } = request.params as { id: string; userId: string };
+    const assignment = await prisma.assignment.findUnique({ where: { id }, select: { classId: true } });
+    if (!assignment) throw Errors.notFound('作业');
+    await assertClassMember(request, assignment.classId);
+
     await prisma.assignmentRep.deleteMany({
       where: { assignmentId: id, userId },
     });

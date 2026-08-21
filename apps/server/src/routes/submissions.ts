@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { submissionCreateSchema } from '@handyin/validation';
 import { prisma } from '../prisma.js';
 import { Errors } from '../errors.js';
-import { requireAssignmentCollector } from '../lib/permissions.js';
+import { requireAssignmentCollector, assertClassMember } from '../lib/permissions.js';
 import { requireTeacher } from '../plugins/auth.js';
 import { parseQrContent } from '../lib/qrcode.js';
 import { getAssignmentStats } from '../lib/stats.js';
@@ -102,6 +102,7 @@ export async function submissionRoutes(app: FastifyInstance): Promise<void> {
       include: { student: true, assignment: true },
     });
     if (!existing) throw Errors.notFound('收取记录');
+    await assertClassMember(request, existing.assignment.classId);
 
     await prisma.submission.delete({ where: { id } });
 
