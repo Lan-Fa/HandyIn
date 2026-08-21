@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { API, createClassAndJoinTeacher, state, teacherCookie } from './helpers.js';
+import { API, adminCookie, createClassAndJoinTeacher, state, teacherCookie } from './helpers.js';
+import { prisma } from '../src/prisma.js';
 
 async function setupAssignment() {
   const { id: classId } = await createClassAndJoinTeacher();
@@ -88,5 +89,44 @@ describe('提交（扫码）', () => {
       payload: { assignmentId, qrToken: student.qrToken },
     });
     expect(res.statusCode).toBe(401);
+  });
+
+  it('教师删除未加入班级的收取记录返回 403', async () => {
+    // 管理员建班 + 学生 + 作业 + 提交
+    const cls = await state.app.inject({
+      method: 'POST',
+      url: `${API}/classes`,
+      headers: { cookie: adminCookie() },
+      payload: { entryYear: 2026, department: '02', classNumber: 1 },
+    });
+    const classId = cls.json().class.id;
+    const stu = await state.app.inject({
+      method: 'POST',
+      url: `${API}/students`,
+      headers: { cookie: adminCookie() },
+      payload: { name: '李四', classId, numberInClass: 1 },
+    });
+    const qrToken = stu.json().student.qrToken;
+    const asg = await state.app.inject({
+      method: 'POST',
+      url: `${API}/assignments`,
+      headers: { cookie: adminCookie() },
+      payload: { classId, title: '二班作业' },
+    });
+    const assignmentId = asg.json().assignment.id;
+    await state.app.inject({
+      method: 'POST',
+      url: `${API}/submissions`,
+      headers: { cookie: adminCookie() },
+      payload: { assignmentId, qrToken },
+    });
+    const sub = await prisma.submission.findFirst({ where: { assignmentId } });
+
+    const res = await state.app.inject({
+      method: 'DELETE',
+      url: `${API}/submissions/${sub!.id}`,
+      headers: { cookie: teacherCookie() },
+    });
+    expect(res.statusCode).toBe(403);
   });
 });

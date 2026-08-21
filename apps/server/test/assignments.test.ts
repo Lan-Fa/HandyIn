@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { API, createClassAndJoinTeacher, state, teacherCookie } from './helpers.js';
+import { API, adminCookie, createClassAndJoinTeacher, state, teacherCookie } from './helpers.js';
 
 async function createClass() {
   return createClassAndJoinTeacher();
@@ -86,5 +86,49 @@ describe('作业管理', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().stats.assignmentId).toBe(id);
+  });
+
+  it('教师列表仅返回已加入班级的作业', async () => {
+    const { id: joinedId } = await createClassAndJoinTeacher({
+      entryYear: 2026,
+      department: '01',
+      classNumber: 1,
+    });
+    await state.app.inject({
+      method: 'POST',
+      url: `${API}/assignments`,
+      headers: { cookie: teacherCookie() },
+      payload: { classId: joinedId, title: '一班作业' },
+    });
+
+    // 管理员建另一班 + 作业，教师未加入
+    const cls = await state.app.inject({
+      method: 'POST',
+      url: `${API}/classes`,
+      headers: { cookie: adminCookie() },
+      payload: { entryYear: 2026, department: '02', classNumber: 1 },
+    });
+    const otherId = cls.json().class.id;
+    await state.app.inject({
+      method: 'POST',
+      url: `${API}/assignments`,
+      headers: { cookie: adminCookie() },
+      payload: { classId: otherId, title: '二班作业' },
+    });
+
+    const teacherRes = await state.app.inject({
+      method: 'GET',
+      url: `${API}/assignments`,
+      headers: { cookie: teacherCookie() },
+    });
+    expect(teacherRes.json().assignments).toHaveLength(1);
+    expect(teacherRes.json().assignments[0].classId).toBe(joinedId);
+
+    const adminRes = await state.app.inject({
+      method: 'GET',
+      url: `${API}/assignments`,
+      headers: { cookie: adminCookie() },
+    });
+    expect(adminRes.json().assignments).toHaveLength(2);
   });
 });
