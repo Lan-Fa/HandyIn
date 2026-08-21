@@ -7,8 +7,14 @@ export const DEPARTMENT_LABELS: Record<DepartmentCode, string> = {
   '03': '小学部',
 };
 
-export const ROLES = ['TEACHER', 'REPRESENTATIVE'] as const;
+export const ROLES = ['ADMIN', 'TEACHER', 'REPRESENTATIVE'] as const;
 export type Role = (typeof ROLES)[number];
+
+export const ROLE_LABELS: Record<Role, string> = {
+  ADMIN: '管理员',
+  TEACHER: '教师',
+  REPRESENTATIVE: '课代表',
+};
 
 export const ASSIGNMENT_STATUSES = ['DRAFT', 'COLLECTING', 'FINISHED'] as const;
 export type AssignmentStatus = (typeof ASSIGNMENT_STATUSES)[number];
@@ -27,6 +33,15 @@ export interface ClassDto {
   department: DepartmentCode;
   classNumber: number;
   studentCount: number;
+}
+
+export interface JoinableClassDto extends ClassDto {
+  joined: boolean;
+}
+
+export interface ClassBatchResult {
+  created: { entryYear: number; department: DepartmentCode; classNumber: number }[];
+  skipped: { entryYear: number; department: DepartmentCode; classNumber: number }[];
 }
 
 export interface StudentDto {
@@ -89,7 +104,8 @@ export type ImportIssueReason =
   | 'invalid_number'
   | 'missing_name'
   | 'duplicate_in_file'
-  | 'duplicate_in_db';
+  | 'duplicate_in_db'
+  | 'not_joined_class';
 
 export interface ImportValidationIssue {
   row: number;

@@ -9,6 +9,7 @@ datasource db {
 }
 
 enum Role {
+  ADMIN
   TEACHER
   REPRESENTATIVE
 }
@@ -28,10 +29,11 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  assignments Assignment[]  @relation("AssignmentCreator")
-  submissions Submission[]
-  repGrants   AssignmentRep[]
-  auditLogs   AuditLog[]
+  assignments    Assignment[]  @relation("AssignmentCreator")
+  submissions    Submission[]
+  repGrants      AssignmentRep[]
+  auditLogs      AuditLog[]
+  teacherClasses TeacherClass[]
 }
 
 model Class {
@@ -42,10 +44,24 @@ model Class {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  students    Student[]
-  assignments Assignment[]
+  students       Student[]
+  assignments    Assignment[]
+  teacherClasses TeacherClass[]
 
   @@unique([entryYear, department, classNumber])
+}
+
+model TeacherClass {
+  id        String   @id @default(uuid())
+  teacherId String
+  classId   String
+  createdAt DateTime @default(now())
+
+  teacher User  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  class   Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, classId])
+  @@index([classId])
 }
 
 model Student {

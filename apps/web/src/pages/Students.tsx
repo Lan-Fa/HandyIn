@@ -48,6 +48,7 @@ const REASON_LABEL: Record<ImportValidationIssue['reason'], string> = {
   missing_name: '缺失姓名',
   duplicate_in_file: '文件内重复',
   duplicate_in_db: '学号已存在',
+  not_joined_class: '未加入该班级',
 };
 
 export default function Students() {

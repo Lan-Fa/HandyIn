@@ -5,7 +5,7 @@ export const STUDENT_NUMBER_REGEX = /^\d{10}$/;
 
 export const departmentSchema = z.enum(DEPARTMENT_CODES);
 
-export const roleSchema = z.enum(['TEACHER', 'REPRESENTATIVE']);
+export const roleSchema = z.enum(['ADMIN', 'TEACHER', 'REPRESENTATIVE']);
 
 export const assignmentStatusSchema = z.enum(['DRAFT', 'COLLECTING', 'FINISHED']);
 
@@ -37,6 +37,13 @@ export const classCreateSchema = z.object({
 });
 
 export const classUpdateSchema = classCreateSchema;
+
+export const classBatchCreateSchema = z.object({
+  entryYear: z.number().int().min(2000).max(2100),
+  department: departmentSchema,
+  count: z.number().int().min(1).max(99),
+  startFrom: z.number().int().min(1).max(99).default(1),
+});
 
 export const studentCreateSchema = z
   .object({
