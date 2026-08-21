@@ -49,4 +49,4 @@ ENV APP_PORT=3000
 
 EXPOSE 3000
 
-CMD ["node", "apps/server/dist/index.js"]
+CMD ["sh", "-c", "node_modules/.bin/prisma db push --schema prisma/schema.prisma --skip-generate && node apps/server/dist/index.js"]
