@@ -82,10 +82,8 @@ export const submissionDeleteSchema = z.object({
   submissionId: z.string().uuid(),
 });
 
-export const repGrantSchema = z.object({
-  assignmentId: z.string().uuid(),
+export const repClassAssignSchema = z.object({
   userId: z.string().uuid(),
-  expiresAt: z.string().datetime().nullable().optional(),
 });
 
 export const idParamSchema = z.object({

@@ -61,40 +61,40 @@
 
 ### 四、Schema 与共享类型
 
-- [ ] `prisma/schema.prisma`
+- [x] `prisma/schema.prisma`
   - 新增 `RepClass`（`userId`+`classId` 唯一，双向 `onDelete: Cascade`）
   - `User.repClasses` / `Class.repClasses` 反向关系
   - 删除 `AssignmentRep`、`User.repGrants`、`Assignment.reps`
-- [ ] `packages/validation/src/index.ts`
+- [x] `packages/validation/src/index.ts`
   - 删 `repGrantSchema`；新增 `repClassAssignSchema = { userId: z.string().uuid() }`
 
 ### 五、后端
 
-- [ ] `apps/server/src/lib/permissions.ts`：`requireAssignmentCollector` REP 分支改查 `RepClass`
-- [ ] `apps/server/src/routes/ws.ts`：`authorize` REP 分支改查 `RepClass`
-- [ ] `apps/server/src/routes/assignments.ts`：`GET /assignments` REP 分支返回所属班所有作业
-- [ ] `apps/server/src/routes/classes.ts`：`GET /classes` 放宽 `requireAuth`，新增 REP 分支（返回 `RepClass` 班级）
-- [ ] `apps/server/src/routes/reps.ts` 重写：`GET/POST/DELETE /classes/:id/reps[/:userId]`
-- [ ] `apps/server/src/routes/users.ts`：`GET /users/representatives` 保留
+- [x] `apps/server/src/lib/permissions.ts`：`requireAssignmentCollector` REP 分支改查 `RepClass`
+- [x] `apps/server/src/routes/ws.ts`：`authorize` REP 分支改查 `RepClass`
+- [x] `apps/server/src/routes/assignments.ts`：`GET /assignments` REP 分支返回所属班所有作业
+- [x] `apps/server/src/routes/classes.ts`：`GET /classes` 放宽 `requireAuth`，新增 REP 分支（返回 `RepClass` 班级）
+- [x] `apps/server/src/routes/reps.ts` 重写：`GET/POST/DELETE /classes/:id/reps[/:userId]`
+- [x] `apps/server/src/routes/users.ts`：`GET /users/representatives` 保留
 
 ### 六、前端
 
-- [ ] `apps/web/src/components/Layout.tsx`：课代表也显示「当前班级」下拉
-- [ ] `apps/web/src/pages/Assignments.tsx`：课代表按 `currentClassId` 过滤
-- [ ] `apps/web/src/pages/AssignmentDetail.tsx`：移除「课代表授权」整块
-- [ ] `apps/web/src/pages/Classes.tsx`：每行加「课代表」按钮 → 弹窗分配/移除
-- [ ] `apps/web/src/pages/Users.tsx`：新建/编辑 `REPRESENTATIVE` 可选所属班级
+- [x] `apps/web/src/components/Layout.tsx`：课代表也显示「当前班级」下拉
+- [x] `apps/web/src/pages/Assignments.tsx`：课代表按 `currentClassId` 过滤、隐藏新建按钮
+- [x] `apps/web/src/pages/AssignmentDetail.tsx`：移除「课代表授权」整块
+- [x] `apps/web/src/pages/Classes.tsx`：每行加「课代表」按钮 → 弹窗分配/移除
+- [x] `apps/web/src/pages/Users.tsx`：新建 `REPRESENTATIVE` 可选所属班级
 
 ### 七、测试
 
-- [ ] `apps/server/test/reps.test.ts` 重写为班级归属语义
-- [ ] `apps/server/test/submissions.test.ts`：课代表所属班扫码成功、跨班 403
-- [ ] `apps/server/test/setup.ts` / `helpers.ts`：`resetData` 改 `repClass.deleteMany()`
+- [x] `apps/server/test/reps.test.ts` 重写为班级归属语义
+- [x] `apps/server/test/submissions.test.ts`：课代表所属班扫码成功、跨班 403
+- [x] `apps/server/test/setup.ts` / `helpers.ts`：`resetData` 改 `repClass.deleteMany()`
 
 ### 八、验证
 
-- [ ] `pnpm typecheck` / `pnpm build` 本地全绿
-- [ ] 服务器容器内跑集成测试
+- [x] `pnpm typecheck` / `pnpm build` 本地全绿（含 `prisma validate`）
+- [ ] 服务器容器内跑集成测试（待 push 后执行）
 
 ---
 
@@ -103,7 +103,7 @@
 | 批次 | 阶段 | 状态 | commit |
 |---|---|---|---|
 | 计划书 | — | 已完成 | — |
-| 一 | 前端 1–4 | 已完成 | — |
-| 一 | 测试 | 已完成 | — |
-| 一 | 验证 + commit | 本地通过；待 commit | — |
-| 二 | 功能 5 | 待办 | — |
+| 一 | 前端 1–4 | 已完成 | `d2122a8` |
+| 一 | 测试 | 已完成 | `d2122a8` |
+| 一 | 验证 + commit | 本地通过 | `d2122a8` |
+| 二 | 功能 5 | 已完成 | 待 commit |

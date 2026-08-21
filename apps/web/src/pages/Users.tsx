@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
-import { ROLE_LABELS, type Role } from '@handyin/types';
+import { DEPARTMENT_LABELS, ROLE_LABELS, type ClassDto, type Role } from '@handyin/types';
 import { api } from '../lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -46,6 +46,8 @@ export default function Users() {
   const [error, setError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
   const [form, setForm] = useState({ username: '', password: '', name: '', role: 'REPRESENTATIVE' as Role });
+  const [classes, setClasses] = useState<ClassDto[]>([]);
+  const [classIds, setClassIds] = useState<string[]>([]);
 
   const load = async () => {
     const d = await api.get<{ users: UserRow[] }>('/users');
@@ -56,17 +58,34 @@ export default function Users() {
     load().finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    api
+      .get<{ classes: ClassDto[] }>('/classes')
+      .then((d) => setClasses(d.classes))
+      .catch(() => {});
+  }, []);
+
+  const toggleClass = (id: string) => {
+    setClassIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
   const handleCreate = async () => {
     setError('');
     try {
-      await api.post('/users', {
+      const created = await api.post<{ user: { id: string; role: Role } }>('/users', {
         username: form.username,
         password: form.password,
         name: form.name || undefined,
         role: form.role,
       });
+      if (created.user.role === 'REPRESENTATIVE') {
+        for (const cid of classIds) {
+          await api.post(`/classes/${cid}/reps`, { userId: created.user.id });
+        }
+      }
       setOpen(false);
       setForm({ username: '', password: '', name: '', role: 'REPRESENTATIVE' });
+      setClassIds([]);
       await load();
       toast.success('用户创建成功');
     } catch (err) {
@@ -162,6 +181,30 @@ export default function Users() {
                 </SelectContent>
               </Select>
             </div>
+            {form.role === 'REPRESENTATIVE' && (
+              <div className="space-y-2">
+                <Label>所属班级（可选）</Label>
+                <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border p-2">
+                  {classes.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">暂无班级，可稍后在「班级」页分配</p>
+                  ) : (
+                    classes.map((c) => (
+                      <label key={c.id} className="flex cursor-pointer items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={classIds.includes(c.id)}
+                          onChange={() => toggleClass(c.id)}
+                        />
+                        <span>
+                          {c.entryYear}级{DEPARTMENT_LABELS[c.department]}
+                          {c.classNumber}班
+                        </span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="username">用户名</Label>
               <Input

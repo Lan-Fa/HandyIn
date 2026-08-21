@@ -76,14 +76,16 @@ export async function assignmentRoutes(app: FastifyInstance): Promise<void> {
         orderBy: { createdAt: 'desc' },
       });
     } else {
-      const grants = await prisma.assignmentRep.findMany({
+      const memberships = await prisma.repClass.findMany({
         where: { userId: user.id },
-        include: { assignment: { include: { class: true } } },
+        select: { classId: true },
+      });
+      const classIds = memberships.map((m) => m.classId);
+      assignments = await prisma.assignment.findMany({
+        where: { classId: { in: classIds } },
+        include: { class: true },
         orderBy: { createdAt: 'desc' },
       });
-      assignments = grants
-        .filter((g) => !g.expiresAt || g.expiresAt.getTime() > Date.now())
-        .map((g) => g.assignment);
     }
 
     return { assignments: await attachCounts(assignments) };

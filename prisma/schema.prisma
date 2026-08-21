@@ -31,7 +31,7 @@ model User {
 
   assignments    Assignment[]  @relation("AssignmentCreator")
   submissions    Submission[]
-  repGrants      AssignmentRep[]
+  repClasses     RepClass[]
   auditLogs      AuditLog[]
   teacherClasses TeacherClass[]
 }
@@ -47,6 +47,7 @@ model Class {
   students       Student[]
   assignments    Assignment[]
   teacherClasses TeacherClass[]
+  repClasses     RepClass[]
 
   @@unique([entryYear, department, classNumber])
 }
@@ -61,6 +62,19 @@ model TeacherClass {
   class   Class @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   @@unique([teacherId, classId])
+  @@index([classId])
+}
+
+model RepClass {
+  id        String   @id @default(uuid())
+  userId    String
+  classId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, classId])
   @@index([classId])
 }
 
@@ -94,7 +108,6 @@ model Assignment {
   class       Class           @relation(fields: [classId], references: [id], onDelete: Cascade)
   createdBy   User            @relation("AssignmentCreator", fields: [createdById], references: [id])
   submissions Submission[]
-  reps        AssignmentRep[]
 
   @@index([classId])
 }
@@ -112,19 +125,6 @@ model Submission {
 
   @@unique([assignmentId, studentId])
   @@index([assignmentId])
-}
-
-model AssignmentRep {
-  id           String    @id @default(uuid())
-  assignmentId String
-  userId       String
-  expiresAt    DateTime?
-  createdAt    DateTime  @default(now())
-
-  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([assignmentId, userId])
 }
 
 model AuditLog {

@@ -50,10 +50,14 @@ export async function requireAssignmentCollector(request: FastifyRequest, reply:
     return;
   }
 
-  const grant = await prisma.assignmentRep.findUnique({
-    where: { assignmentId_userId: { assignmentId, userId: user.id } },
+  const assignment = await prisma.assignment.findUnique({
+    where: { id: assignmentId },
+    select: { classId: true },
   });
-  if (!grant || (grant.expiresAt && grant.expiresAt.getTime() < Date.now())) {
-    throw Errors.forbidden();
-  }
+  if (!assignment) throw Errors.forbidden();
+
+  const membership = await prisma.repClass.findUnique({
+    where: { userId_classId: { userId: user.id, classId: assignment.classId } },
+  });
+  if (!membership) throw Errors.forbidden();
 }

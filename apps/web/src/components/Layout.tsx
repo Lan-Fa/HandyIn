@@ -44,14 +44,15 @@ export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const isAdmin = user?.role === 'ADMIN';
   const isTeacher = user?.role === 'TEACHER';
+  const isRep = user?.role === 'REPRESENTATIVE';
   const { currentClassId, setCurrentClassId, classes } = useCurrentClass();
 
   useEffect(() => {
-    if (!isTeacher || classes.length === 0) return;
+    if ((!isTeacher && !isRep) || classes.length === 0) return;
     const first = classes[0]!;
     const valid = classes.some((c) => c.id === currentClassId);
     if (!valid) setCurrentClassId(first.id);
-  }, [isTeacher, classes, currentClassId, setCurrentClassId]);
+  }, [isTeacher, isRep, classes, currentClassId, setCurrentClassId]);
 
   const classLabel = (c: ClassDto) =>
     `${c.entryYear}级${DEPARTMENT_LABELS[c.department]}${c.classNumber}班`;
@@ -87,7 +88,7 @@ export default function Layout() {
         </div>
       </div>
       <Separator />
-      {isTeacher && (
+      {(isTeacher || isRep) && (
         <>
           <div className="p-3">
             <div className="mb-2 px-1 text-xs font-medium text-muted-foreground">当前班级</div>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { QrCode, UserPlus } from 'lucide-react';
+import { QrCode } from 'lucide-react';
 import type { AssignmentDto, AssignmentStats } from '@handyin/types';
 import { api, wsUrl } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -11,20 +11,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Spinner } from '@/components/ui/spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 
 interface SubmissionRow {
@@ -35,22 +21,6 @@ interface SubmissionRow {
   submittedAt?: string;
   operatorName?: string;
   submissionId?: string;
-}
-
-interface RepRow {
-  id: string;
-  userId: string;
-  username: string;
-  name: string | null;
-  expiresAt: string | null;
-  active: boolean;
-}
-
-interface UserRow {
-  id: string;
-  username: string;
-  name: string | null;
-  role: string;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -74,10 +44,6 @@ export default function AssignmentDetail() {
   const [tab, setTab] = useState<'submitted' | 'unsubmitted'>('unsubmitted');
   const [loading, setLoading] = useState(true);
 
-  const [reps, setReps] = useState<RepRow[]>([]);
-  const [users, setUsers] = useState<UserRow[]>([]);
-  const [repOpen, setRepOpen] = useState(false);
-  const [repUserId, setRepUserId] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<SubmissionRow | null>(null);
   const [deleteAssignmentTarget, setDeleteAssignmentTarget] = useState<AssignmentDto | null>(null);
 
@@ -90,18 +56,12 @@ export default function AssignmentDetail() {
     setUnsubmitted(d.unsubmitted);
   }, [id]);
 
-  const loadReps = useCallback(async () => {
-    const d = await api.get<{ reps: RepRow[] }>(`/assignments/${id}/reps`);
-    setReps(d.reps);
-  }, [id]);
-
   useEffect(() => {
     Promise.all([
       api.get<{ assignment: AssignmentDto }>(`/assignments/${id}`).then((d) => setAssignment(d.assignment)),
       loadStats(),
-      ...(isTeacher ? [loadReps(), api.get<{ users: UserRow[] }>('/users/representatives').then((d) => setUsers(d.users))] : []),
     ]).finally(() => setLoading(false));
-  }, [id, isTeacher, loadStats, loadReps]);
+  }, [id, loadStats]);
 
   useEffect(() => {
     const ws = new WebSocket(wsUrl(id!));
@@ -128,23 +88,6 @@ export default function AssignmentDetail() {
     await api.put(`/assignments/${id}`, { status });
     const d = await api.get<{ assignment: AssignmentDto }>(`/assignments/${id}`);
     setAssignment(d.assignment);
-  };
-
-  const grantRep = async () => {
-    try {
-      await api.post(`/assignments/${id}/reps`, { assignmentId: id, userId: repUserId });
-      setRepOpen(false);
-      setRepUserId('');
-      await loadReps();
-      toast.success('授权成功');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : '授权失败');
-    }
-  };
-
-  const revokeRep = async (userId: string) => {
-    await api.del(`/assignments/${id}/reps/${userId}`);
-    await loadReps();
   };
 
   const deleteSubmission = async () => {
@@ -179,8 +122,6 @@ export default function AssignmentDetail() {
   }
 
   if (!assignment) return <EmptyState text="作业不存在" />;
-
-  const repCandidates = users.filter((u) => u.role === 'REPRESENTATIVE');
 
   return (
     <div className="space-y-6">
@@ -304,77 +245,6 @@ export default function AssignmentDetail() {
           </Card>
         </TabsContent>
       </Tabs>
-
-      {isTeacher && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="font-medium">课代表授权</h2>
-              <p className="mt-1 text-sm text-muted-foreground">授权课代表扫码收取该作业。</p>
-            </div>
-            <Button variant="outline" onClick={() => setRepOpen(true)}>
-              <UserPlus className="size-4" />
-              授权课代表
-            </Button>
-          </div>
-          <Card>
-            {reps.length === 0 ? (
-              <EmptyState text="尚未授权课代表" />
-            ) : (
-              <ul className="divide-y divide-border">
-                {reps.map((r) => (
-                  <li key={r.id} className="flex items-center justify-between px-5 py-3">
-                    <span>
-                      <span className="font-medium">{r.name || r.username}</span>
-                      <span className="ml-2 text-sm text-muted-foreground">@{r.username}</span>
-                      <span className="ml-2">
-                        <Badge variant={r.active ? 'green' : 'slate'}>{r.active ? '有效' : '已过期'}</Badge>
-                      </span>
-                    </span>
-                    <Button variant="ghost" size="sm" onClick={() => revokeRep(r.userId)}>
-                      取消授权
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        </div>
-      )}
-
-      <Dialog open={repOpen} onOpenChange={setRepOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>授权课代表</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {repCandidates.length === 0 ? (
-              <p className="text-sm text-muted-foreground">没有可授权的课代表，请先在「用户」中创建课代表账号。</p>
-            ) : (
-              <Select value={repUserId} onValueChange={setRepUserId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="请选择课代表" />
-                </SelectTrigger>
-                <SelectContent>
-                  {repCandidates.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.name || u.username}（@{u.username}）
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRepOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={grantRep} disabled={!repUserId}>
-              授权
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <ConfirmDialog
         open={deleteTarget !== null}

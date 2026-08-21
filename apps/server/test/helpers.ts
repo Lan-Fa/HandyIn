@@ -76,7 +76,7 @@ export async function seedUsers(): Promise<{ admin: SeedUser; teacher: SeedUser;
 
 export async function resetData(): Promise<void> {
   await prisma.submission.deleteMany();
-  await prisma.assignmentRep.deleteMany();
+  await prisma.repClass.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.student.deleteMany();
   await prisma.assignment.deleteMany();

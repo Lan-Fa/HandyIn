@@ -23,11 +23,16 @@ async function authorize(request: FastifyRequest): Promise<string | null> {
     return membership ? user.id : null;
   }
 
-  const grant = await prisma.assignmentRep.findUnique({
-    where: { assignmentId_userId: { assignmentId, userId: user.id } },
+  const assignment = await prisma.assignment.findUnique({
+    where: { id: assignmentId },
+    select: { classId: true },
   });
-  if (!grant || (grant.expiresAt && grant.expiresAt.getTime() < Date.now())) return null;
-  return user.id;
+  if (!assignment) return null;
+
+  const membership = await prisma.repClass.findUnique({
+    where: { userId_classId: { userId: user.id, classId: assignment.classId } },
+  });
+  return membership ? user.id : null;
 }
 
 export async function wsRoutes(app: FastifyInstance): Promise<void> {

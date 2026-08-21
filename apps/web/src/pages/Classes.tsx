@@ -33,6 +33,19 @@ import {
 } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 
+interface RepRow {
+  id: string;
+  userId: string;
+  username: string;
+  name: string | null;
+}
+
+interface RepCandidate {
+  id: string;
+  username: string;
+  name: string | null;
+}
+
 export default function Classes() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
@@ -61,6 +74,12 @@ export default function Classes() {
   const [joinOpen, setJoinOpen] = useState(false);
   const [joinLoading, setJoinLoading] = useState(false);
   const [available, setAvailable] = useState<JoinableClassDto[]>([]);
+
+  const [repTarget, setRepTarget] = useState<ClassDto | null>(null);
+  const [repOpen, setRepOpen] = useState(false);
+  const [reps, setReps] = useState<RepRow[]>([]);
+  const [repUsers, setRepUsers] = useState<RepCandidate[]>([]);
+  const [repUserId, setRepUserId] = useState('');
 
   const load = async () => {
     const d = await api.get<{ classes: ClassDto[] }>('/classes');
@@ -165,8 +184,51 @@ export default function Classes() {
     }
   };
 
+  const openReps = async (c: ClassDto) => {
+    setRepTarget(c);
+    setRepOpen(true);
+    setRepUserId('');
+    try {
+      const [r, u] = await Promise.all([
+        api.get<{ reps: RepRow[] }>(`/classes/${c.id}/reps`),
+        api.get<{ users: RepCandidate[] }>('/users/representatives'),
+      ]);
+      setReps(r.reps);
+      setRepUsers(u.users);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '加载课代表失败');
+    }
+  };
+
+  const assignRep = async () => {
+    if (!repTarget || !repUserId) return;
+    try {
+      await api.post(`/classes/${repTarget.id}/reps`, { userId: repUserId });
+      setRepUserId('');
+      const r = await api.get<{ reps: RepRow[] }>(`/classes/${repTarget.id}/reps`);
+      setReps(r.reps);
+      toast.success('已分配课代表');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '分配失败');
+    }
+  };
+
+  const removeRep = async (userId: string) => {
+    if (!repTarget) return;
+    try {
+      await api.del(`/classes/${repTarget.id}/reps/${userId}`);
+      const r = await api.get<{ reps: RepRow[] }>(`/classes/${repTarget.id}/reps`);
+      setReps(r.reps);
+      toast.success('已移除课代表');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '移除失败');
+    }
+  };
+
   const classLabel = (c: ClassDto) =>
     `${c.entryYear}级${DEPARTMENT_LABELS[c.department]}${c.classNumber}班`;
+
+  const repCandidates = repUsers.filter((u) => !reps.some((r) => r.userId === u.id));
 
   return (
     <div className="space-y-6">
@@ -209,15 +271,20 @@ export default function Classes() {
                   <span className="font-medium">{classLabel(c)}</span>
                   <span className="text-sm text-muted-foreground">{c.studentCount} 名学生</span>
                 </div>
-                {isAdmin ? (
-                  <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(c)}>
-                    删除
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => openReps(c)}>
+                    课代表
                   </Button>
-                ) : (
-                  <Button variant="ghost" size="sm" onClick={() => setLeaveTarget(c)}>
-                    退出班级
-                  </Button>
-                )}
+                  {isAdmin ? (
+                    <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(c)}>
+                      删除
+                    </Button>
+                  ) : (
+                    <Button variant="ghost" size="sm" onClick={() => setLeaveTarget(c)}>
+                      退出班级
+                    </Button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
@@ -384,6 +451,51 @@ export default function Classes() {
               ))}
             </ul>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* 课代表管理 */}
+      <Dialog open={repOpen} onOpenChange={(open) => !open && setRepOpen(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>课代表 · {repTarget ? classLabel(repTarget) : ''}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Select value={repUserId} onValueChange={setRepUserId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="选择课代表" />
+                </SelectTrigger>
+                <SelectContent>
+                  {repCandidates.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name || u.username}（@{u.username}）
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button onClick={assignRep} disabled={!repUserId}>
+                分配
+              </Button>
+            </div>
+            {reps.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">尚未分配课代表</p>
+            ) : (
+              <ul className="max-h-72 divide-y divide-border overflow-y-auto">
+                {reps.map((r) => (
+                  <li key={r.id} className="flex items-center justify-between py-2">
+                    <span className="text-sm">
+                      <span className="font-medium">{r.name || r.username}</span>
+                      <span className="ml-2 text-muted-foreground">@{r.username}</span>
+                    </span>
+                    <Button variant="ghost" size="sm" onClick={() => removeRep(r.userId)}>
+                      移除
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 

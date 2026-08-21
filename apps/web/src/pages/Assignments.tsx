@@ -46,7 +46,9 @@ export default function Assignments() {
   const { user } = useAuth();
   const isTeacher = user?.role === 'TEACHER';
   const isAdmin = user?.role === 'ADMIN';
+  const isRep = user?.role === 'REPRESENTATIVE';
   const canDelete = isTeacher || isAdmin;
+  const canCreate = isTeacher || isAdmin;
   const { currentClassId } = useCurrentClass();
   const [assignments, setAssignments] = useState<AssignmentDto[]>([]);
   const [classes, setClasses] = useState<ClassDto[]>([]);
@@ -69,7 +71,7 @@ export default function Assignments() {
   }, []);
 
   const visibleAssignments =
-    isTeacher && currentClassId
+    (isTeacher || isRep) && currentClassId
       ? assignments.filter((a) => a.classId === currentClassId)
       : assignments;
 
@@ -117,15 +119,19 @@ export default function Assignments() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight">作业</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {isTeacher && currentClass
-              ? `${classLabel(currentClass)} · 创建作业并实时统计收取进度。`
-              : '创建作业并实时统计收取进度。'}
+            {isRep
+              ? '查看并收取你所在班级的作业。'
+              : (isTeacher && currentClass
+                  ? `${classLabel(currentClass)} · 创建作业并实时统计收取进度。`
+                  : '创建作业并实时统计收取进度。')}
           </p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="size-4" />
-          新建作业
-        </Button>
+        {canCreate && (
+          <Button onClick={openCreate}>
+            <Plus className="size-4" />
+            新建作业
+          </Button>
+        )}
       </div>
 
       <Card>

@@ -3,7 +3,7 @@ import { classBatchCreateSchema, classCreateSchema, classUpdateSchema } from '@h
 import type { ClassDto, DepartmentCode, JoinableClassDto } from '@handyin/types';
 import { prisma } from '../prisma.js';
 import { Errors } from '../errors.js';
-import { requireAdmin, requireTeacher } from '../plugins/auth.js';
+import { requireAdmin, requireAuth, requireTeacher } from '../plugins/auth.js';
 import { assertClassMember } from '../lib/permissions.js';
 
 function toDto(c: {
@@ -23,8 +23,8 @@ function toDto(c: {
 }
 
 export async function classRoutes(app: FastifyInstance): Promise<void> {
-  // 管理员与教师均可查看班级；教师仅能查看已加入的班级
-  app.get('/classes', { preHandler: requireTeacher }, async (request) => {
+  // 管理员/教师/课代表均可查看班级；教师返回已加入，课代表返回所属班级
+  app.get('/classes', { preHandler: requireAuth }, async (request) => {
     const user = request.user!;
     if (user.role === 'ADMIN') {
       const classes = await prisma.class.findMany({
@@ -34,8 +34,21 @@ export async function classRoutes(app: FastifyInstance): Promise<void> {
       return { classes: classes.map(toDto) };
     }
 
-    const memberships = await prisma.teacherClass.findMany({
-      where: { teacherId: user.id },
+    if (user.role === 'TEACHER') {
+      const memberships = await prisma.teacherClass.findMany({
+        where: { teacherId: user.id },
+        include: { class: { include: { _count: { select: { students: true } } } } },
+        orderBy: [
+          { class: { entryYear: 'desc' } },
+          { class: { department: 'asc' } },
+          { class: { classNumber: 'asc' } },
+        ],
+      });
+      return { classes: memberships.map((m) => toDto(m.class)) };
+    }
+
+    const memberships = await prisma.repClass.findMany({
+      where: { userId: user.id },
       include: { class: { include: { _count: { select: { students: true } } } } },
       orderBy: [
         { class: { entryYear: 'desc' } },
