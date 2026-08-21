@@ -46,6 +46,7 @@ export default function Users() {
   const [error, setError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
   const [form, setForm] = useState({ username: '', password: '', name: '', role: 'REPRESENTATIVE' as Role });
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [classes, setClasses] = useState<ClassDto[]>([]);
   const [classIds, setClassIds] = useState<string[]>([]);
 
@@ -71,6 +72,10 @@ export default function Users() {
 
   const handleCreate = async () => {
     setError('');
+    if (form.password !== confirmPassword) {
+      setError('两次输入的密码不一致');
+      return;
+    }
     try {
       const created = await api.post<{ user: { id: string; role: Role } }>('/users', {
         username: form.username,
@@ -85,6 +90,7 @@ export default function Users() {
       }
       setOpen(false);
       setForm({ username: '', password: '', name: '', role: 'REPRESENTATIVE' });
+      setConfirmPassword('');
       setClassIds([]);
       await load();
       toast.success('用户创建成功');
@@ -229,6 +235,16 @@ export default function Users() {
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 placeholder="至少 8 位"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">再次输入密码</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="再次输入密码"
               />
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}

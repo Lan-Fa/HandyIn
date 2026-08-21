@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import { submissionCreateSchema } from '@handyin/validation';
+import { submissionCreateSchema, submissionManualSchema } from '@handyin/validation';
+import type { AssignmentStats } from '@handyin/types';
 import { prisma } from '../prisma.js';
 import { Errors } from '../errors.js';
 import { assertAssignmentOwner, requireAssignmentCollector } from '../lib/permissions.js';
@@ -10,6 +11,72 @@ import { broadcast } from '../lib/realtime.js';
 
 function isUniqueError(e: unknown): boolean {
   return typeof e === 'object' && e !== null && (e as { code?: string }).code === 'P2002';
+}
+
+interface SubmissionStudent {
+  id: string;
+  name: string;
+  studentNumber: string;
+  numberInClass: number;
+}
+
+interface RecordedSubmission {
+  status: 'submitted' | 'duplicate';
+  submittedAt: Date;
+  operatorName: string;
+  stats: AssignmentStats;
+}
+
+async function recordSubmission(
+  assignmentId: string,
+  student: SubmissionStudent,
+  operatorId: string,
+): Promise<RecordedSubmission> {
+  const operator = await prisma.user.findUnique({
+    where: { id: operatorId },
+    select: { id: true, name: true, username: true },
+  });
+  const operatorName = operator?.name ?? operator?.username ?? '';
+
+  const studentPayload = {
+    id: student.id,
+    name: student.name,
+    studentNumber: student.studentNumber,
+    numberInClass: student.numberInClass,
+  };
+
+  const existing = await prisma.submission.findUnique({
+    where: { assignmentId_studentId: { assignmentId, studentId: student.id } },
+  });
+  if (existing) {
+    const stats = await getAssignmentStats(assignmentId);
+    return { status: 'duplicate', submittedAt: existing.submittedAt, operatorName, stats };
+  }
+
+  try {
+    const submission = await prisma.submission.create({
+      data: { assignmentId, studentId: student.id, operatorId },
+    });
+    const stats = await getAssignmentStats(assignmentId);
+    broadcast(assignmentId, {
+      type: 'submission',
+      status: 'submitted',
+      student: studentPayload,
+      submittedAt: submission.submittedAt.toISOString(),
+      operatorName,
+      stats,
+    });
+    return { status: 'submitted', submittedAt: submission.submittedAt, operatorName, stats };
+  } catch (e) {
+    if (isUniqueError(e)) {
+      const dup = await prisma.submission.findUnique({
+        where: { assignmentId_studentId: { assignmentId, studentId: student.id } },
+      });
+      const stats = await getAssignmentStats(assignmentId);
+      return { status: 'duplicate', submittedAt: dup!.submittedAt, operatorName, stats };
+    }
+    throw e;
+  }
 }
 
 export async function submissionRoutes(app: FastifyInstance): Promise<void> {
@@ -33,66 +100,62 @@ export async function submissionRoutes(app: FastifyInstance): Promise<void> {
       throw Errors.badRequest('该学生不属于本作业的班级');
     }
 
-    const operator = await prisma.user.findUnique({
-      where: { id: request.user!.id },
-      select: { id: true, name: true, username: true },
-    });
+    const result = await recordSubmission(assignmentId, student, request.user!.id);
 
-    const makeResponse = (status: 'submitted' | 'duplicate', submittedAt: Date) => {
-      return {
-        status,
-        student: {
-          id: student.id,
-          name: student.name,
-          studentNumber: student.studentNumber,
-          numberInClass: student.numberInClass,
-        },
-        submittedAt: submittedAt.toISOString(),
-        operatorName: operator?.name ?? operator?.username ?? '',
-      };
-    };
-
-    const existing = await prisma.submission.findUnique({
-      where: { assignmentId_studentId: { assignmentId, studentId: student.id } },
+    return reply.send({
+      status: result.status,
+      student: {
+        id: student.id,
+        name: student.name,
+        studentNumber: student.studentNumber,
+        numberInClass: student.numberInClass,
+      },
+      submittedAt: result.submittedAt.toISOString(),
+      operatorName: result.operatorName,
+      stats: result.stats,
     });
-    if (existing) {
-      const stats = await getAssignmentStats(assignmentId);
-      return reply.send({ ...makeResponse('duplicate', existing.submittedAt), stats });
+  });
+
+  app.post('/submissions/manual', { preHandler: requireAssignmentCollector }, async (request, reply) => {
+    const body = submissionManualSchema.safeParse(request.body);
+    if (!body.success) throw Errors.badRequest(body.error.issues[0]?.message ?? '参数错误');
+
+    const { assignmentId, studentId } = body.data;
+
+    const assignment = await prisma.assignment.findUnique({ where: { id: assignmentId } });
+    if (!assignment) throw Errors.notFound('作业');
+
+    const student = await prisma.student.findUnique({ where: { id: studentId } });
+    if (!student) throw Errors.notFound('学生');
+
+    if (student.classId !== assignment.classId) {
+      throw Errors.badRequest('该学生不属于本作业的班级');
     }
 
-    try {
-      const submission = await prisma.submission.create({
-        data: { assignmentId, studentId: student.id, operatorId: request.user!.id },
+    const result = await recordSubmission(assignmentId, student, request.user!.id);
+
+    if (result.status === 'submitted') {
+      await prisma.auditLog.create({
+        data: {
+          userId: request.user!.id,
+          action: 'MANUAL_SUBMIT',
+          detail: JSON.stringify({ assignmentId, studentNumber: student.studentNumber }),
+        },
       });
-      const stats = await getAssignmentStats(assignmentId);
-      const payload = {
-        type: 'submission',
-        status: 'submitted',
-        student: {
-          id: student.id,
-          name: student.name,
-          studentNumber: student.studentNumber,
-          numberInClass: student.numberInClass,
-        },
-        submittedAt: submission.submittedAt.toISOString(),
-        operatorName: operator?.name ?? operator?.username ?? '',
-        stats,
-      };
-      broadcast(assignmentId, payload);
-      return reply.send({ ...makeResponse('submitted', submission.submittedAt), stats });
-    } catch (e) {
-      if (isUniqueError(e)) {
-        const dup = await prisma.submission.findUnique({
-          where: { assignmentId_studentId: { assignmentId, studentId: student.id } },
-        });
-        const stats = await getAssignmentStats(assignmentId);
-        return reply.send({
-          ...makeResponse('duplicate', dup!.submittedAt),
-          stats,
-        });
-      }
-      throw e;
     }
+
+    return reply.send({
+      status: result.status,
+      student: {
+        id: student.id,
+        name: student.name,
+        studentNumber: student.studentNumber,
+        numberInClass: student.numberInClass,
+      },
+      submittedAt: result.submittedAt.toISOString(),
+      operatorName: result.operatorName,
+      stats: result.stats,
+    });
   });
 
   app.delete('/submissions/:id', { preHandler: requireTeacher }, async (request) => {

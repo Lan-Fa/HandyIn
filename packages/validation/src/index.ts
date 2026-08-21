@@ -78,6 +78,11 @@ export const submissionCreateSchema = z.object({
   qrToken: z.string().min(1).max(128),
 });
 
+export const submissionManualSchema = z.object({
+  assignmentId: z.string().uuid(),
+  studentId: z.string().uuid(),
+});
+
 export const submissionDeleteSchema = z.object({
   submissionId: z.string().uuid(),
 });

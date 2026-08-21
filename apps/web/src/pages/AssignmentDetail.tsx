@@ -113,6 +113,16 @@ export default function AssignmentDetail() {
     }
   };
 
+  const markSubmitted = async (studentId: string) => {
+    try {
+      await api.post('/submissions/manual', { assignmentId: id, studentId });
+      toast.success('已标记为已交');
+      await loadStats();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '标记失败');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-16">
@@ -209,7 +219,12 @@ export default function AssignmentDetail() {
                       <span className="text-muted-foreground">{String(s.numberInClass).padStart(2, '0')}号</span>
                       <span className="ml-2 font-medium">{s.name}</span>
                     </span>
-                    <span className="font-mono text-sm text-muted-foreground">{s.studentNumber}</span>
+                    <span className="flex items-center gap-3">
+                      <span className="font-mono text-sm text-muted-foreground">{s.studentNumber}</span>
+                      <Button variant="ghost" size="sm" onClick={() => markSubmitted(s.studentId)}>
+                        标记已交
+                      </Button>
+                    </span>
                   </li>
                 ))}
               </ul>
