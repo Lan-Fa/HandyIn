@@ -3,13 +3,28 @@ import { userCreateSchema, userUpdateSchema } from '@handyin/validation';
 import type { Role } from '@handyin/types';
 import { prisma } from '../prisma.js';
 import { Errors } from '../errors.js';
-import { requireAdmin } from '../plugins/auth.js';
+import { requireAdmin, requireTeacher } from '../plugins/auth.js';
 import { hashPassword } from '../lib/password.js';
 
 export async function userRoutes(app: FastifyInstance): Promise<void> {
-  app.addHook('preHandler', requireAdmin);
+  // 教师/管理员均可查看课代表候选（用于授权课代表下拉）
+  app.get('/users/representatives', { preHandler: requireTeacher }, async () => {
+    const users = await prisma.user.findMany({
+      where: { role: 'REPRESENTATIVE' },
+      select: { id: true, username: true, name: true, role: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    return {
+      users: users.map((u) => ({
+        id: u.id,
+        username: u.username,
+        name: u.name,
+        role: u.role as Role,
+      })),
+    };
+  });
 
-  app.get('/users', async () => {
+  app.get('/users', { preHandler: requireAdmin }, async () => {
     const users = await prisma.user.findMany({
       select: { id: true, username: true, name: true, role: true, createdAt: true },
       orderBy: { createdAt: 'asc' },
@@ -25,7 +40,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
-  app.post('/users', async (request, reply) => {
+  app.post('/users', { preHandler: requireAdmin }, async (request, reply) => {
     const body = userCreateSchema.safeParse(request.body);
     if (!body.success) throw Errors.badRequest(body.error.issues[0]?.message ?? '参数错误');
 
@@ -53,7 +68,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
-  app.put('/users/:id', async (request) => {
+  app.put('/users/:id', { preHandler: requireAdmin }, async (request) => {
     const { id } = request.params as { id: string };
     const body = userUpdateSchema.safeParse(request.body);
     if (!body.success) throw Errors.badRequest(body.error.issues[0]?.message ?? '参数错误');
@@ -83,7 +98,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
-  app.delete('/users/:id', async (request) => {
+  app.delete('/users/:id', { preHandler: requireAdmin }, async (request) => {
     const { id } = request.params as { id: string };
     if (id === request.user!.id) throw Errors.badRequest('不能删除自己');
 

@@ -23,6 +23,20 @@ export async function assertClassMember(request: FastifyRequest, classId: string
   if (!membership) throw Errors.forbidden();
 }
 
+// 校验当前用户是该作业的布置者（教师本人 + 仍是班级成员；管理员放行）
+export async function assertAssignmentOwner(request: FastifyRequest, assignmentId: string): Promise<void> {
+  const user = request.user;
+  if (!user) throw Errors.unauthorized();
+  if (user.role === 'ADMIN') return;
+
+  const assignment = await prisma.assignment.findUnique({
+    where: { id: assignmentId },
+    select: { createdById: true, classId: true },
+  });
+  if (!assignment || assignment.createdById !== user.id) throw Errors.forbidden();
+  await assertClassMember(request, assignment.classId);
+}
+
 export async function requireAssignmentCollector(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const user = request.user;
   if (!user) throw Errors.unauthorized();
@@ -32,12 +46,7 @@ export async function requireAssignmentCollector(request: FastifyRequest, reply:
   if (!assignmentId) throw Errors.forbidden();
 
   if (user.role === 'TEACHER') {
-    const assignment = await prisma.assignment.findUnique({
-      where: { id: assignmentId },
-      select: { classId: true },
-    });
-    if (!assignment) throw Errors.forbidden();
-    await assertClassMember(request, assignment.classId);
+    await assertAssignmentOwner(request, assignmentId);
     return;
   }
 

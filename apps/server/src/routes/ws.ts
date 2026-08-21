@@ -14,9 +14,9 @@ async function authorize(request: FastifyRequest): Promise<string | null> {
   if (user.role === 'TEACHER') {
     const assignment = await prisma.assignment.findUnique({
       where: { id: assignmentId },
-      select: { classId: true },
+      select: { createdById: true, classId: true },
     });
-    if (!assignment) return null;
+    if (!assignment || assignment.createdById !== user.id) return null;
     const membership = await prisma.teacherClass.findUnique({
       where: { teacherId_classId: { teacherId: user.id, classId: assignment.classId } },
     });

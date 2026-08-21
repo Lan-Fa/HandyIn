@@ -4,7 +4,7 @@ import type { AssignmentDto, AssignmentStatus } from '@handyin/types';
 import { prisma } from '../prisma.js';
 import { Errors } from '../errors.js';
 import { requireTeacher } from '../plugins/auth.js';
-import { assertClassMember, requireAssignmentCollector } from '../lib/permissions.js';
+import { assertAssignmentOwner, assertClassMember, requireAssignmentCollector } from '../lib/permissions.js';
 
 interface AssignmentWithClass {
   id: string;
@@ -71,7 +71,7 @@ export async function assignmentRoutes(app: FastifyInstance): Promise<void> {
       });
       const classIds = memberships.map((m) => m.classId);
       assignments = await prisma.assignment.findMany({
-        where: { classId: { in: classIds } },
+        where: { createdById: user.id, classId: { in: classIds } },
         include: { class: true },
         orderBy: { createdAt: 'desc' },
       });
@@ -128,7 +128,7 @@ export async function assignmentRoutes(app: FastifyInstance): Promise<void> {
 
     const existing = await prisma.assignment.findUnique({ where: { id } });
     if (!existing) throw Errors.notFound('作业');
-    await assertClassMember(request, existing.classId);
+    await assertAssignmentOwner(request, id);
 
     const assignment = await prisma.assignment.update({
       where: { id },
@@ -144,9 +144,9 @@ export async function assignmentRoutes(app: FastifyInstance): Promise<void> {
 
   app.delete('/assignments/:id', { preHandler: requireTeacher }, async (request) => {
     const { id } = request.params as { id: string };
-    const existing = await prisma.assignment.findUnique({ where: { id }, select: { classId: true } });
+    const existing = await prisma.assignment.findUnique({ where: { id }, select: { id: true } });
     if (!existing) throw Errors.notFound('作业');
-    await assertClassMember(request, existing.classId);
+    await assertAssignmentOwner(request, id);
     await prisma.assignment.delete({ where: { id } });
     return { ok: true };
   });

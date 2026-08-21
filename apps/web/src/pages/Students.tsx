@@ -3,12 +3,13 @@ import { toast } from 'sonner';
 import { QRCodeSVG } from 'qrcode.react';
 import { FileUp, Plus, Printer, QrCode } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
-import type {
-  ClassDto,
-  ImportPreview,
-  ImportResult,
-  ImportValidationIssue,
-  StudentDto,
+import {
+  DEPARTMENT_LABELS,
+  type ClassDto,
+  type ImportPreview,
+  type ImportResult,
+  type ImportValidationIssue,
+  type StudentDto,
 } from '@handyin/types';
 import { api } from '../lib/api';
 import { qrContent } from '../lib/qr';
@@ -205,7 +206,7 @@ export default function Students() {
           <SelectContent>
             {classes.map((c) => (
               <SelectItem key={c.id} value={c.id}>
-                {c.entryYear}级{c.department}部{c.classNumber}班（{c.studentCount}人）
+                {c.entryYear}级{DEPARTMENT_LABELS[c.department]}{c.classNumber}班（{c.studentCount}人）
               </SelectItem>
             ))}
           </SelectContent>

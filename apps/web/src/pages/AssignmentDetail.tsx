@@ -96,7 +96,7 @@ export default function AssignmentDetail() {
     Promise.all([
       api.get<{ assignment: AssignmentDto }>(`/assignments/${id}`).then((d) => setAssignment(d.assignment)),
       loadStats(),
-      ...(isTeacher ? [loadReps(), api.get<{ users: UserRow[] }>('/users').then((d) => setUsers(d.users))] : []),
+      ...(isTeacher ? [loadReps(), api.get<{ users: UserRow[] }>('/users/representatives').then((d) => setUsers(d.users))] : []),
     ]).finally(() => setLoading(false));
   }, [id, isTeacher, loadStats, loadReps]);
 
