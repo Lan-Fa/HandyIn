@@ -1,8 +1,30 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { AssignmentDto, AssignmentStatus, ClassDto } from '@handyin/types';
+import { toast } from 'sonner';
+import { ChevronRight, Plus } from 'lucide-react';
+import { DEPARTMENT_LABELS, type AssignmentDto, type AssignmentStatus, type ClassDto } from '@handyin/types';
 import { api } from '../lib/api';
-import { Badge, Button, Card, EmptyState, Input, Label, Modal, Select, Textarea } from '../components/ui';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const STATUS_LABEL: Record<AssignmentStatus, string> = {
   DRAFT: '草稿',
@@ -48,41 +70,49 @@ export default function Assignments() {
       setOpen(false);
       setForm({ classId: '', title: '', description: '' });
       await load();
+      toast.success('作业创建成功');
     } catch (err) {
       setError(err instanceof Error ? err.message : '创建失败');
     }
   };
 
-  const classLabel = (c: ClassDto) => `${c.entryYear}级${c.department}部${c.classNumber}班`;
+  const classLabel = (c: ClassDto) => `${c.entryYear}级${DEPARTMENT_LABELS[c.department]}${c.classNumber}班`;
 
   return (
-    <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">作业</h2>
-        <Button onClick={() => setOpen(true)}>新建作业</Button>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">作业</h1>
+          <p className="mt-1 text-sm text-muted-foreground">创建作业并实时统计收取进度。</p>
+        </div>
+        <Button onClick={() => setOpen(true)}>
+          <Plus className="size-4" />
+          新建作业
+        </Button>
       </div>
 
       <Card>
         {loading ? (
           <EmptyState text="加载中…" />
         ) : assignments.length === 0 ? (
-          <EmptyState text="暂无作业" />
+          <EmptyState text="暂无作业，点击右上角新建" />
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-border">
             {assignments.map((a) => (
               <li
                 key={a.id}
-                className="flex cursor-pointer items-center justify-between px-4 py-3 hover:bg-slate-50"
+                className="group flex cursor-pointer items-center justify-between px-5 py-4 transition-colors hover:bg-muted/50"
                 onClick={() => navigate(`/assignments/${a.id}`)}
               >
-                <div>
+                <div className="flex items-center gap-3">
                   <span className="font-medium">{a.title}</span>
-                  <span className="ml-3">
-                    <Badge color={STATUS_COLOR[a.status]}>{STATUS_LABEL[a.status]}</Badge>
-                  </span>
+                  <Badge variant={STATUS_COLOR[a.status]}>{STATUS_LABEL[a.status]}</Badge>
                 </div>
-                <div className="text-sm text-slate-500">
-                  {a.submittedCount ?? 0} / {a.totalCount ?? 0}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>
+                    {a.submittedCount ?? 0} / {a.totalCount ?? 0}
+                  </span>
+                  <ChevronRight className="size-4 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
                 </div>
               </li>
             ))}
@@ -90,45 +120,56 @@ export default function Assignments() {
         )}
       </Card>
 
-      <Modal open={open} title="新建作业" onClose={() => setOpen(false)}>
-        <div className="space-y-4">
-          <div>
-            <Label>班级</Label>
-            <Select value={form.classId} onChange={(e) => setForm({ ...form, classId: e.target.value })}>
-              <option value="">请选择班级</option>
-              {classes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {classLabel(c)}
-                </option>
-              ))}
-            </Select>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新建作业</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>班级</Label>
+              <Select value={form.classId} onValueChange={(value) => setForm({ ...form, classId: value })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="请选择班级" />
+                </SelectTrigger>
+                <SelectContent>
+                  {classes.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {classLabel(c)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="title">作业标题</Label>
+              <Input
+                id="title"
+                placeholder="例如：数学 · 第7次作业"
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">说明（可选）</Label>
+              <Textarea
+                id="description"
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+              />
+            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
-          <div>
-            <Label>作业标题</Label>
-            <Input
-              placeholder="例如：数学 · 第7次作业"
-              value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>说明（可选）</Label>
-            <Textarea
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-            />
-          </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setOpen(false)}>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
               取消
             </Button>
             <Button onClick={handleCreate} disabled={!form.classId || !form.title}>
               创建
             </Button>
-          </div>
-        </div>
-      </Modal>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

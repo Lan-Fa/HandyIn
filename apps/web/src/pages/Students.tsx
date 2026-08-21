@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { QRCodeSVG } from 'qrcode.react';
+import { FileUp, Plus, Printer, QrCode } from 'lucide-react';
+import type { ColumnDef } from '@tanstack/react-table';
 import type {
   ClassDto,
   ImportPreview,
@@ -9,7 +12,36 @@ import type {
 } from '@handyin/types';
 import { api } from '../lib/api';
 import { qrContent } from '../lib/qr';
-import { Button, Card, EmptyState, Input, Label, Modal, Select, Spinner } from '../components/ui';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { DataTable } from '@/components/ui/data-table';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 
 const REASON_LABEL: Record<ImportValidationIssue['reason'], string> = {
   invalid_number: '非法学号',
@@ -26,6 +58,7 @@ export default function Students() {
 
   const [addOpen, setAddOpen] = useState(false);
   const [qrStudent, setQrStudent] = useState<StudentDto | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<StudentDto | null>(null);
 
   const [addForm, setAddForm] = useState({ name: '', numberInClass: '' });
   const [addError, setAddError] = useState('');
@@ -68,6 +101,7 @@ export default function Students() {
       setAddOpen(false);
       setAddForm({ name: '', numberInClass: '' });
       await loadStudents(classId);
+      toast.success('学生添加成功');
     } catch (err) {
       setAddError(err instanceof Error ? err.message : '添加失败');
     }
@@ -84,47 +118,96 @@ export default function Students() {
       await loadClasses();
       await loadStudents(classId);
     } catch (err) {
-      alert(err instanceof Error ? err.message : '导入失败');
+      toast.error(err instanceof Error ? err.message : '导入失败');
     } finally {
       setImporting(false);
     }
   };
 
-  const handleDelete = async (id: string, label: string) => {
-    if (!confirm(`确定删除学生「${label}」？`)) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await api.del(`/students/${id}`);
+      await api.del(`/students/${deleteTarget.id}`);
+      toast.success('学生已删除');
+      setDeleteTarget(null);
       await loadStudents(classId);
     } catch (err) {
-      alert(err instanceof Error ? err.message : '删除失败');
+      toast.error(err instanceof Error ? err.message : '删除失败');
     }
   };
 
+  const columns: ColumnDef<StudentDto>[] = [
+    {
+      accessorKey: 'studentNumber',
+      header: '学号',
+      cell: ({ row }) => <span className="font-mono text-sm">{row.original.studentNumber}</span>,
+    },
+    {
+      accessorKey: 'name',
+      header: '姓名',
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+    },
+    {
+      accessorKey: 'numberInClass',
+      header: '班内学号',
+      cell: ({ row }) => `${row.original.numberInClass} 号`,
+    },
+    {
+      id: 'actions',
+      header: () => <span className="sr-only">操作</span>,
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button variant="ghost" size="sm" onClick={() => setQrStudent(row.original)}>
+            <QrCode className="size-4" />
+            二维码
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setDeleteTarget(row.original)}
+          >
+            删除
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <div>
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">学生管理</h2>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">学生管理</h1>
+          <p className="mt-1 text-sm text-muted-foreground">管理学生信息与二维码。</p>
+        </div>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => fileRef.current?.click()}>
+          <Button variant="outline" onClick={() => fileRef.current?.click()}>
+            <FileUp className="size-4" />
             导入
           </Button>
-          <Button variant="secondary" onClick={() => students.length && window.print()}>
+          <Button variant="outline" onClick={() => students.length && window.print()}>
+            <Printer className="size-4" />
             打印二维码
           </Button>
           <Button onClick={() => setAddOpen(true)} disabled={!classId}>
+            <Plus className="size-4" />
             添加学生
           </Button>
         </div>
       </div>
 
-      <div className="mb-4">
-        <Select value={classId} onChange={(e) => setClassId(e.target.value)}>
-          <option value="">请选择班级</option>
-          {classes.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.entryYear}级{c.department}部{c.classNumber}班（{c.studentCount}人）
-            </option>
-          ))}
+      <div className="max-w-md">
+        <Select value={classId} onValueChange={setClassId}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="请选择班级" />
+          </SelectTrigger>
+          <SelectContent>
+            {classes.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.entryYear}级{c.department}部{c.classNumber}班（{c.studentCount}人）
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
       </div>
 
@@ -140,147 +223,147 @@ export default function Students() {
         }}
       />
 
-      <Card>
-        {loading ? (
-          <EmptyState text="加载中…" />
-        ) : !classId ? (
-          <EmptyState text="请先选择或创建班级" />
-        ) : students.length === 0 ? (
-          <EmptyState text="该班级暂无学生，可手动添加或文件导入" />
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-left text-slate-500">
-                <th className="px-4 py-2">学号</th>
-                <th className="px-4 py-2">姓名</th>
-                <th className="px-4 py-2">班内学号</th>
-                <th className="px-4 py-2 text-right">操作</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {students.map((s) => (
-                <tr key={s.id}>
-                  <td className="px-4 py-2 font-mono">{s.studentNumber}</td>
-                  <td className="px-4 py-2">{s.name}</td>
-                  <td className="px-4 py-2">{s.numberInClass} 号</td>
-                  <td className="px-4 py-2 text-right">
-                    <Button variant="ghost" onClick={() => setQrStudent(s)}>
-                      二维码
-                    </Button>
-                    <Button variant="ghost" onClick={() => handleDelete(s.id, `${s.name} ${s.studentNumber}`)}>
-                      删除
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Card>
+      <DataTable
+        columns={columns}
+        data={students}
+        searchPlaceholder="搜索姓名或学号…"
+        searchKeys={['name', 'studentNumber']}
+        emptyText={loading ? '加载中…' : !classId ? '请先选择或创建班级' : '该班级暂无学生，可手动添加或文件导入'}
+      />
 
       {/* 添加学生 */}
-      <Modal open={addOpen} title="添加学生" onClose={() => setAddOpen(false)}>
-        <div className="space-y-4">
-          <div>
-            <Label>姓名</Label>
-            <Input value={addForm.name} onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} />
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>添加学生</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">姓名</Label>
+              <Input
+                id="name"
+                value={addForm.name}
+                onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="numberInClass">班内学号</Label>
+              <Input
+                id="numberInClass"
+                type="number"
+                placeholder="例如 12"
+                value={addForm.numberInClass}
+                onChange={(e) => setAddForm({ ...addForm, numberInClass: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">学号将根据班级自动生成</p>
+            </div>
+            {addError && <p className="text-sm text-destructive">{addError}</p>}
           </div>
-          <div>
-            <Label>班内学号</Label>
-            <Input
-              type="number"
-              placeholder="例如 12"
-              value={addForm.numberInClass}
-              onChange={(e) => setAddForm({ ...addForm, numberInClass: e.target.value })}
-            />
-            <p className="mt-1 text-xs text-slate-400">学号将根据班级自动生成</p>
-          </div>
-          {addError && <p className="text-sm text-red-600">{addError}</p>}
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setAddOpen(false)}>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)}>
               取消
             </Button>
             <Button onClick={handleAdd}>添加</Button>
-          </div>
-        </div>
-      </Modal>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 导入结果 */}
-      <Modal
+      <Dialog
         open={importing || importResult !== null}
-        title="导入学生"
-        onClose={() => setImportResult(null)}
+        onOpenChange={(open) => !open && setImportResult(null)}
       >
-        {importing ? (
-          <div className="flex items-center justify-center gap-2 py-8">
-            <Spinner /> 正在导入…
-          </div>
-        ) : importResult ? (
-          <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-lg bg-emerald-50 p-3">
-                <div className="text-2xl font-semibold text-emerald-600">{importResult.result.created}</div>
-                <div className="text-xs text-slate-500">新增</div>
-              </div>
-              <div className="rounded-lg bg-amber-50 p-3">
-                <div className="text-2xl font-semibold text-amber-600">{importResult.result.skipped.length}</div>
-                <div className="text-xs text-slate-500">跳过</div>
-              </div>
-              <div className="rounded-lg bg-slate-50 p-3">
-                <div className="text-2xl font-semibold text-slate-600">{importResult.preview.total}</div>
-                <div className="text-xs text-slate-500">总行数</div>
-              </div>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>导入学生</DialogTitle>
+          </DialogHeader>
+          {importing ? (
+            <div className="flex items-center justify-center gap-2 py-8">
+              <Spinner className="size-5" /> 正在导入…
             </div>
-            {importResult.result.skipped.length > 0 && (
-              <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-left text-slate-500">
-                      <th className="px-3 py-2">行</th>
-                      <th className="px-3 py-2">学号</th>
-                      <th className="px-3 py-2">姓名</th>
-                      <th className="px-3 py-2">原因</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {importResult.result.skipped.map((issue, i) => (
-                      <tr key={i}>
-                        <td className="px-3 py-1.5">{issue.row}</td>
-                        <td className="px-3 py-1.5 font-mono">{issue.studentNumber}</td>
-                        <td className="px-3 py-1.5">{issue.name}</td>
-                        <td className="px-3 py-1.5">{REASON_LABEL[issue.reason]}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          ) : importResult ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <Card className="bg-emerald-50 py-3">
+                  <div className="text-2xl font-semibold text-emerald-600">{importResult.result.created}</div>
+                  <div className="text-xs text-muted-foreground">新增</div>
+                </Card>
+                <Card className="bg-amber-50 py-3">
+                  <div className="text-2xl font-semibold text-amber-600">{importResult.result.skipped.length}</div>
+                  <div className="text-xs text-muted-foreground">跳过</div>
+                </Card>
+                <Card className="bg-slate-50 py-3">
+                  <div className="text-2xl font-semibold text-slate-600">{importResult.preview.total}</div>
+                  <div className="text-xs text-muted-foreground">总行数</div>
+                </Card>
               </div>
-            )}
-            <div className="flex justify-end">
-              <Button variant="secondary" onClick={() => setImportResult(null)}>
-                完成
-              </Button>
+              {importResult.result.skipped.length > 0 && (
+                <div className="max-h-48 overflow-y-auto rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>行</TableHead>
+                        <TableHead>学号</TableHead>
+                        <TableHead>姓名</TableHead>
+                        <TableHead>原因</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {importResult.result.skipped.map((issue, i) => (
+                        <TableRow key={i}>
+                          <TableCell>{issue.row}</TableCell>
+                          <TableCell className="font-mono">{issue.studentNumber}</TableCell>
+                          <TableCell>{issue.name}</TableCell>
+                          <TableCell>{REASON_LABEL[issue.reason]}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setImportResult(null)}>
+                  完成
+                </Button>
+              </DialogFooter>
             </div>
-          </div>
-        ) : (
-          <EmptyState text="选择 CSV 或 Excel 文件（学号,姓名）" />
-        )}
-      </Modal>
+          ) : (
+            <EmptyState text="选择 CSV 或 Excel 文件（学号,姓名）" />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* 单个二维码 */}
-      <Modal open={!!qrStudent} title="学生二维码" onClose={() => setQrStudent(null)}>
-        {qrStudent && (
-          <div className="flex flex-col items-center gap-3">
-            <div className="rounded-lg border border-slate-200 p-4">
-              <QRCodeSVG value={qrContent(qrStudent.qrToken)} size={200} />
+      <Dialog open={!!qrStudent} onOpenChange={(open) => !open && setQrStudent(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>学生二维码</DialogTitle>
+          </DialogHeader>
+          {qrStudent && (
+            <div className="flex flex-col items-center gap-3">
+              <div className="rounded-lg border p-4">
+                <QRCodeSVG value={qrContent(qrStudent.qrToken)} size={200} />
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-medium">{qrStudent.name}</div>
+                <div className="font-mono text-sm text-muted-foreground">{qrStudent.studentNumber}</div>
+              </div>
+              <Button onClick={() => window.print()}>
+                <Printer className="size-4" />
+                打印
+              </Button>
             </div>
-            <div className="text-center">
-              <div className="text-lg font-medium">{qrStudent.name}</div>
-              <div className="font-mono text-sm text-slate-500">{qrStudent.studentNumber}</div>
-            </div>
-            <Button onClick={() => window.print()}>打印</Button>
-          </div>
-        )}
-      </Modal>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="删除学生"
+        description={deleteTarget ? `确定删除学生「${deleteTarget.name} ${deleteTarget.studentNumber}」？` : undefined}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onConfirm={handleDelete}
+      />
 
       {/* 批量打印区域（仅打印时可见） */}
       <div id="print-area">

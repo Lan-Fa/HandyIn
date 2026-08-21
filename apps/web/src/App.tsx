@@ -2,7 +2,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth';
 import { BASE_PATH } from './lib/api';
 import Layout from './components/Layout';
-import { Spinner } from './components/ui';
+import { Spinner } from './components/ui/spinner';
+import { Toaster } from './components/ui/sonner';
 import Login from './pages/Login';
 import Classes from './pages/Classes';
 import Students from './pages/Students';
@@ -29,6 +30,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter basename={BASE_PATH}>
+        <Toaster />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route

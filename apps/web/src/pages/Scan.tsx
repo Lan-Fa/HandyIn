@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser';
+import { ArrowLeft } from 'lucide-react';
 import type { AssignmentDto, AssignmentStats } from '@handyin/types';
 import { api, wsUrl } from '../lib/api';
 import { enqueuePending, getPending, removePending, type PendingSubmission } from '../lib/offline';
+import { Button } from '@/components/ui/button';
 
 interface ScanResponse {
   status: 'submitted' | 'duplicate';
@@ -208,9 +210,15 @@ export default function Scan() {
   return (
     <div className="flex min-h-full flex-col bg-slate-900 text-white">
       <div className="flex items-center justify-between px-4 py-3">
-        <button onClick={() => navigate(-1)} className="text-sm text-slate-300">
-          ← 返回
-        </button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate(-1)}
+          className="text-slate-300 hover:bg-white/10 hover:text-white"
+        >
+          <ArrowLeft className="size-4" />
+          返回
+        </Button>
         <div className="text-center">
           <div className="font-medium">{assignment?.title ?? '加载中…'}</div>
           <div className="text-sm text-slate-400">

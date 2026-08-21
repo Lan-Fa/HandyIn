@@ -1,7 +1,29 @@
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { Plus } from 'lucide-react';
+import type { ColumnDef } from '@tanstack/react-table';
 import type { Role } from '@handyin/types';
 import { api } from '../lib/api';
-import { Badge, Button, Card, EmptyState, Input, Label, Modal, Select } from '../components/ui';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { DataTable } from '@/components/ui/data-table';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 
 interface UserRow {
   id: string;
@@ -16,6 +38,7 @@ export default function Users() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
   const [form, setForm] = useState({ username: '', password: '', name: '', role: 'REPRESENTATIVE' as Role });
 
   const load = async () => {
@@ -39,90 +62,143 @@ export default function Users() {
       setOpen(false);
       setForm({ username: '', password: '', name: '', role: 'REPRESENTATIVE' });
       await load();
+      toast.success('用户创建成功');
     } catch (err) {
       setError(err instanceof Error ? err.message : '创建失败');
     }
   };
 
-  const handleDelete = async (id: string, username: string) => {
-    if (!confirm(`确定删除用户「${username}」？`)) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await api.del(`/users/${id}`);
+      await api.del(`/users/${deleteTarget.id}`);
+      toast.success('用户已删除');
+      setDeleteTarget(null);
       await load();
     } catch (err) {
-      alert(err instanceof Error ? err.message : '删除失败');
+      toast.error(err instanceof Error ? err.message : '删除失败');
     }
   };
 
+  const columns: ColumnDef<UserRow>[] = [
+    {
+      accessorKey: 'username',
+      header: '用户',
+      cell: ({ row }) => (
+        <div>
+          <div className="font-medium">{row.original.name || row.original.username}</div>
+          <div className="text-xs text-muted-foreground">@{row.original.username}</div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'role',
+      header: '角色',
+      cell: ({ row }) => (
+        <Badge variant={row.original.role === 'TEACHER' ? 'indigo' : 'amber'}>
+          {row.original.role === 'TEACHER' ? '教师' : '课代表'}
+        </Badge>
+      ),
+    },
+    {
+      id: 'actions',
+      header: () => <span className="sr-only">操作</span>,
+      cell: ({ row }) => (
+        <div className="text-right">
+          <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(row.original)}>
+            删除
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">用户管理</h2>
-        <Button onClick={() => setOpen(true)}>新建用户</Button>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">用户管理</h1>
+          <p className="mt-1 text-sm text-muted-foreground">管理教师与课代表账号。</p>
+        </div>
+        <Button onClick={() => setOpen(true)}>
+          <Plus className="size-4" />
+          新建用户
+        </Button>
       </div>
 
-      <Card>
-        {loading ? (
-          <EmptyState text="加载中…" />
-        ) : users.length === 0 ? (
-          <EmptyState text="暂无用户" />
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {users.map((u) => (
-              <li key={u.id} className="flex items-center justify-between px-4 py-3">
-                <div>
-                  <span className="font-medium">{u.name || u.username}</span>
-                  <span className="ml-2 text-sm text-slate-400">@{u.username}</span>
-                  <span className="ml-3">
-                    <Badge color={u.role === 'TEACHER' ? 'indigo' : 'amber'}>
-                      {u.role === 'TEACHER' ? '教师' : '课代表'}
-                    </Badge>
-                  </span>
-                </div>
-                <Button variant="ghost" onClick={() => handleDelete(u.id, u.username)}>
-                  删除
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+      <DataTable
+        columns={columns}
+        data={users}
+        searchPlaceholder="搜索用户名或姓名…"
+        searchKeys={['username', 'name']}
+        emptyText={loading ? '加载中…' : '暂无用户'}
+      />
 
-      <Modal open={open} title="新建用户" onClose={() => setOpen(false)}>
-        <div className="space-y-4">
-          <div>
-            <Label>角色</Label>
-            <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })}>
-              <option value="TEACHER">教师</option>
-              <option value="REPRESENTATIVE">课代表</option>
-            </Select>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新建用户</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>角色</Label>
+              <Select
+                value={form.role}
+                onValueChange={(value) => setForm({ ...form, role: value as Role })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TEACHER">教师</SelectItem>
+                  <SelectItem value="REPRESENTATIVE">课代表</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="username">用户名</Label>
+              <Input
+                id="username"
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="name">姓名（可选）</Label>
+              <Input
+                id="name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">初始密码</Label>
+              <Input
+                id="password"
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                placeholder="至少 8 位"
+              />
+            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
-          <div>
-            <Label>用户名</Label>
-            <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
-          </div>
-          <div>
-            <Label>姓名（可选）</Label>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          </div>
-          <div>
-            <Label>初始密码</Label>
-            <Input
-              type="password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder="至少 8 位"
-            />
-          </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setOpen(false)}>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
               取消
             </Button>
             <Button onClick={handleCreate}>创建</Button>
-          </div>
-        </div>
-      </Modal>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="删除用户"
+        description={deleteTarget ? `确定删除用户「${deleteTarget.username}」？` : undefined}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }
