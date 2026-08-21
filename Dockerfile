@@ -3,6 +3,9 @@
 # ---- 构建阶段 ----
 FROM node:22-slim AS build
 
+ARG NPM_REGISTRY=https://registry.npmmirror.com
+ENV npm_config_registry=$NPM_REGISTRY
+
 WORKDIR /app
 
 RUN npm install -g pnpm@10.24.0

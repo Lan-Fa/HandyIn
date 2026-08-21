@@ -19,6 +19,7 @@ services:
       context: .
       args:
         HANDYIN_BASE_PATH: ${HANDYIN_BASE_PATH:-/handyin}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-handyin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-handyin}
