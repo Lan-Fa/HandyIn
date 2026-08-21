@@ -129,7 +129,7 @@ export default function AssignmentDetail() {
 
   const grantRep = async () => {
     try {
-      await api.post(`/assignments/${id}/reps`, { userId: repUserId });
+      await api.post(`/assignments/${id}/reps`, { assignmentId: id, userId: repUserId });
       setRepOpen(false);
       setRepUserId('');
       await loadReps();

@@ -62,6 +62,26 @@ function vibrate(kind: 'success' | 'duplicate' | 'error'): void {
   }
 }
 
+function cameraErrorMessage(err: unknown): string {
+  const name = (err as { name?: string } | null)?.name;
+  switch (name) {
+    case 'NotAllowedError':
+    case 'PermissionDeniedError':
+    case 'SecurityError':
+      return '摄像头权限被拒绝，请在浏览器中允许访问';
+    case 'NotFoundError':
+    case 'DevicesNotFoundError':
+      return '未检测到摄像头设备';
+    case 'NotReadableError':
+    case 'TrackStartError':
+      return '摄像头被其他应用占用，请关闭后重试';
+    case 'OverconstrainedError':
+      return '没有符合要求的摄像头';
+    default:
+      return '无法访问摄像头，请申请摄像头权限后重试';
+  }
+}
+
 export default function Scan() {
   const { assignmentId } = useParams<{ assignmentId: string }>();
   const navigate = useNavigate();
@@ -125,36 +145,49 @@ export default function Scan() {
     const video = videoRef.current;
     if (!video) return;
 
+    // 非安全上下文（HTTP 且非 localhost）下 mediaDevices 不可用
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError('当前非 HTTPS 环境，无法调用摄像头');
+      return;
+    }
+
     const reader = new BrowserMultiFormatReader();
     let cancelled = false;
 
+    const callback: Parameters<BrowserMultiFormatReader['decodeFromConstraints']>[2] = (
+      result,
+      _err,
+      controls,
+    ) => {
+      controlsRef.current = controls;
+      if (cancelled || !result) return;
+      const token = result.getText();
+      const now = Date.now();
+      if (processingRef.current) return;
+      if (token === lastTokenRef.current.token && now - lastTokenRef.current.time < 2500) return;
+
+      lastTokenRef.current = { token, time: now };
+      processingRef.current = true;
+
+      submit(token)
+        .then((kind) => {
+          playTone(kind === 'success' ? 'success' : kind === 'duplicate' ? 'duplicate' : 'error');
+          vibrate(kind === 'success' ? 'success' : kind === 'duplicate' ? 'duplicate' : 'error');
+        })
+        .finally(() => {
+          processingRef.current = false;
+        });
+    };
+
+    // 优先后置摄像头，失败则回退到任意摄像头（适配桌面）
     reader
-      .decodeFromConstraints(
-        { audio: false, video: { facingMode: 'environment' } },
-        video,
-        (result, _err, controls) => {
-          controlsRef.current = controls;
-          if (cancelled || !result) return;
-          const token = result.getText();
-          const now = Date.now();
-          if (processingRef.current) return;
-          if (token === lastTokenRef.current.token && now - lastTokenRef.current.time < 2500) return;
-
-          lastTokenRef.current = { token, time: now };
-          processingRef.current = true;
-
-          submit(token)
-            .then((kind) => {
-              playTone(kind === 'success' ? 'success' : kind === 'duplicate' ? 'duplicate' : 'error');
-              vibrate(kind === 'success' ? 'success' : kind === 'duplicate' ? 'duplicate' : 'error');
-            })
-            .finally(() => {
-              processingRef.current = false;
-            });
-        },
-      )
+      .decodeFromConstraints({ audio: false, video: { facingMode: 'environment' } }, video, callback)
       .catch(() => {
-        if (!cancelled) setError('无法访问摄像头，请检查权限');
+        if (cancelled) return;
+        return reader.decodeFromConstraints({ audio: false, video: true }, video, callback);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(cameraErrorMessage(err));
       });
 
     return () => {
