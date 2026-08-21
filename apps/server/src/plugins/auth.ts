@@ -14,12 +14,12 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply):
   if (!request.user) throw Errors.unauthorized();
 }
 
-export function requireTeacher(request: FastifyRequest, reply: FastifyReply): void {
+export async function requireTeacher(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   if (!request.user) throw Errors.unauthorized();
   if (request.user.role !== 'TEACHER') throw Errors.forbidden();
 }
 
-export function requireCollector(request: FastifyRequest, reply: FastifyReply): void {
+export async function requireCollector(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   // 教师与课代表均可扫码收集
   if (!request.user) throw Errors.unauthorized();
 }
