@@ -31,22 +31,7 @@ HandyIn 是面向学校（单校部署）的作业收取与统计系统。教师
 
 ## 界面预览
 
-> 截图待补充
-
-<!-- TODO: 将界面截图放入 docs/screenshots/，并替换下面的占位路径 -->
-
-| 班级管理 | 扫码收取 | 已交/未交统计 |
-| :---: | :---: | :---: |
-| ![班级管理](docs/screenshots/classes.png) | ![扫码](docs/screenshots/scan.png) | ![统计](docs/screenshots/stats.png) |
-
-## 技术栈
-
-| 层 | 技术 |
-| --- | --- |
-| 前端 `apps/web` | React 19 · Vite 6 · TypeScript · Tailwind CSS 4 · PWA（vite-plugin-pwa） · react-router-dom 7 · ZXing（扫码） · qrcode.react · Radix UI · TanStack Table · sonner |
-| 后端 `apps/server` | Fastify 5 · Prisma 6 · TypeScript（ESM） · @fastify/*（cookie/cors/multipart/rate-limit/static/websocket） · @node-rs/argon2 · Zod |
-| 共享包 `packages` | `types`（共享类型与常量） · `validation`（Zod schema 与学号解析） |
-| 部署 | Docker 多阶段构建 · docker-compose · Caddy（反向代理） · PostgreSQL 16 |
+![1](docs/screenshots/1.png)
 
 ## 快速开始（Docker 部署）
 
@@ -124,14 +109,6 @@ packages/
 prisma/       数据模型（schema.prisma）
 docs/         项目文档与计划书
 ```
-
-## 安全
-
-- 密码使用 Argon2id 哈希，不存明文。
-- Session 使用 HttpOnly / SameSite Cookie（HTTPS 下启用 Secure）。
-- 登录接口限流，统一报错避免泄露用户是否存在。
-- 后端按「身份 → 角色 → 班级/作业归属」分层校验权限。
-- 关键操作（删除记录、分配课代表、手动标记等）写入审计日志。
 
 ## License
 
